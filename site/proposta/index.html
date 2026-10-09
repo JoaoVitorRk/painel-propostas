@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Proposta · página modelo · RK Performance</title>
+<!--
+  Página da proposta (base RK): o que o cliente recebe pelo WhatsApp, lendo ?p=<slug> da API.
+  Esta é a PÁGINA MODELO da demonstração pública, com um negócio fictício (Aurora Studio, foto e vídeo de
+  eventos). Para clonar para um cliente da RK: troque o bloco CONFIG no começo de proposta.js (DEMO: false,
+  marca, WhatsApp e API dele), as fotos de exemplo pelas dele e os textos desta página pelos dele.
+  Os rótulos dos dois valores de cada opção ("Evento" / "Evento + ensaio") vêm dos dados da proposta
+  (dados.rotulos), montados no painel.
+-->
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#16120F">
+<meta property="og:title" content="Proposta · página modelo · RK Performance">
+<meta property="og:description" content="Veja como fica a proposta que o seu cliente recebe pelo WhatsApp: opções, valores, condições e um botão para fechar.">
+<meta property="og:type" content="website">
+<meta property="og:image" content="https://painel.rkperformance.com.br/media/og-proposta.jpg">
+<link rel="icon" href="../media/favicon.png" type="image/png">
+<link rel="apple-touch-icon" href="../media/apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preconnect" href="https://images.unsplash.com">
+<link href="https://fonts.googleapis.com/css2?family=Jost:wght@200;300;400;500&family=DM+Mono:wght@400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="proposta.css">
+<script>document.documentElement.classList.add('js');</script>
+</head>
+<body>
+<div class="grain" aria-hidden="true"></div>
+
+<!-- ======================= FAIXA "PÁGINA MODELO" (demonstração) ======================= -->
+<aside class="faixa-modelo so-demo" id="faixaModelo" aria-label="Sobre esta página">
+  <div class="fm-in">
+    <a class="rk-logo" href="https://rkperformance.com.br" target="_blank" rel="noopener" aria-label="RK Performance"><span class="rk">RK</span><span class="sep" aria-hidden="true"></span><span class="perf">PERFORMANCE</span></a>
+    <p class="fm-txt"><b>Página modelo · exemplo fictício.</b> Na sua versão, o design segue a paleta da sua marca e tudo é personalizado para o seu negócio: as suas fotos, as suas opções e os seus valores.</p>
+    <a class="fm-cta" id="faixaModeloCta" href="https://wa.me/5542999246208" target="_blank" rel="noopener">Quero a minha<span class="seta" aria-hidden="true"><svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M2 8h11M8 3l5 5-5 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span></a>
+  </div>
+</aside>
+
+<!-- ESTADO: carregando -->
+<div class="estado" id="carregando" role="status" aria-label="Carregando a proposta">
+  <div>
+    <span class="marca"><span class="marca-nome" data-marca>Aurora Studio</span><span class="marca-sub">Fotografia e vídeo de eventos <b class="so-demo">exemplo</b></span></span>
+    <div class="estado-linha"></div>
+  </div>
+</div>
+
+<!-- ESTADO: link inativo / erro -->
+<div class="estado" id="erro" hidden>
+  <div>
+    <span class="marca"><span class="marca-nome" data-marca>Aurora Studio</span><span class="marca-sub">Fotografia e vídeo de eventos <b class="so-demo">exemplo</b></span></span>
+    <h1>Proposta <em>indisponível</em></h1>
+    <p>Este link não está ativo no momento. Me chama no WhatsApp que eu envio a proposta atualizada para vocês.</p>
+    <a class="btn btn-solid" id="erroWa" href="#folhaWa"><span id="erroWaTxt">Falar com a Aurora</span><span class="arrow" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M2 8h11M8 3l5 5-5 5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span></a>
+    <div class="so-demo"><a class="voltar" href="../">Voltar ao painel</a></div>
+  </div>
+</div>
+<noscript><p style="position:fixed;inset:auto 0 0 0;padding:18px 20px;text-align:center;background:#16120F;color:#F2EBE1">Para ver a proposta, ative o JavaScript do navegador.</p></noscript>
+
+<!-- faixa de prévia (administrador logado no painel) -->
+<div class="previa" id="previa" hidden><span id="previaTxt">Prévia</span><a href="../">Painel</a></div>
+<!-- faixa do sandbox do visitante (proposta criada no modo visitante, só neste aparelho) -->
+<div class="previa sandbox" id="faixaSandbox" role="status" hidden><span id="faixaSandboxTxt"><b>Modo visitante:</b> esta é a sua versão de teste, só aparece neste aparelho.</span><a href="../">Painel</a></div>
+
+<div id="proposta" hidden>
+<main>
+  <!-- ======================= CAPA ======================= -->
+  <section class="capa dark" aria-label="Capa da proposta">
+    <div class="capa-top">
+      <span class="marca"><span class="marca-nome" data-marca>Aurora Studio</span><span class="marca-sub">Fotografia e vídeo de eventos <b class="so-demo">exemplo</b></span></span>
+      <span class="eyebrow">Proposta comercial</span>
+    </div>
+    <div class="capa-corpo">
+      <div class="capa-inner">
+        <p class="eyebrow linha">Proposta preparada para</p>
+        <h1 id="pCliente"></h1>
+        <p class="capa-meta" id="pMeta"></p>
+        <a class="capa-cue" href="#inicio"><i></i><span>Role para conhecer</span></a>
+      </div>
+      <!-- fotos de exemplo (na versão do cliente da RK, as fotos ou vídeos dele); as laterais só carregam no computador -->
+      <div class="janelas" aria-hidden="true">
+        <div class="janela lado"><img src="https://images.unsplash.com/photo-1529636798458-92182e662485?auto=format&amp;fit=crop&amp;w=560&amp;h=934&amp;q=75" alt="" width="560" height="934" loading="lazy" decoding="async"></div>
+        <div class="janela centro"><img src="https://images.unsplash.com/photo-1571332760709-8943098311f1?auto=format&amp;fit=crop&amp;w=900&amp;h=1600&amp;q=75" srcset="https://images.unsplash.com/photo-1571332760709-8943098311f1?auto=format&amp;fit=crop&amp;w=600&amp;h=1067&amp;q=75 600w, https://images.unsplash.com/photo-1571332760709-8943098311f1?auto=format&amp;fit=crop&amp;w=900&amp;h=1600&amp;q=75 900w" sizes="(min-width: 1000px) 370px, 100vw" alt="" width="900" height="1600" fetchpriority="high" decoding="async"></div>
+        <div class="janela lado"><img src="https://images.unsplash.com/photo-1492684223066-81342ee5ff30?auto=format&amp;fit=crop&amp;w=560&amp;h=934&amp;q=75" alt="" width="560" height="934" loading="lazy" decoding="async"></div>
+      </div>
+    </div>
+  </section>
+
+  <div class="faixa noite-off" id="inicio" aria-hidden="true"></div>
+
+  <!-- ======================= CARTA (só quando há recado) ======================= -->
+  <section class="carta-sec light" id="secMensagem" aria-label="Recado para o cliente" hidden>
+    <div class="wrap carta" id="carta">
+      <p class="eyebrow linha reveal">Um recado para vocês</p>
+      <p class="carta-texto reveal d1" id="pMensagem"></p>
+      <span class="fio reveal d2" aria-hidden="true"></span>
+      <p class="assinatura reveal d2"><span data-marca>Aurora Studio</span></p>
+      <p class="nota-modelo reveal d3"><span class="nm-selo">Modelo</span>Recado de exemplo: na sua versão, você escreve um para cada cliente.</p>
+    </div>
+  </section>
+
+  <!-- ======================= QUEM ASSINA ======================= -->
+  <section class="quem light alt" aria-label="Quem assina a proposta">
+    <div class="wrap quem-grid">
+      <figure class="retrato reveal">
+        <div class="arco cant"><i class="c1"></i><i class="c2"></i><i class="c3"></i><i class="c4"></i><img src="https://images.unsplash.com/photo-1471341971476-ae15ff5dd4ea?auto=format&amp;fit=crop&amp;w=800&amp;h=1000&amp;q=75" alt="Estúdio fotográfico com softboxes acesos, sem pessoas" width="800" height="1000" loading="lazy" decoding="async"></div>
+        <div class="retrato-2"><img src="https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&amp;fit=crop&amp;w=500&amp;h=625&amp;q=75" alt="Câmera e lentes sobre fundo escuro" width="500" height="625" loading="lazy" decoding="async"></div>
+        <figcaption>Fotos de exemplo</figcaption>
+      </figure>
+      <div class="quem-copy">
+        <p class="eyebrow linha reveal">Quem assina</p>
+        <h2 class="reveal d1">Cada evento tem uma <em>luz</em>. A gente encontra a sua.</h2>
+        <p class="lead reveal d2">Fotografia e vídeo pensados para o seu dia.</p>
+        <p class="reveal d2">Somos o Aurora Studio, um estúdio de foto e vídeo de eventos. Cobrimos casamentos, formaturas, aniversários e eventos corporativos com uma equipe pequena, que conhece o roteiro do dia antes de chegar.</p>
+        <p class="reveal d2">O trabalho começa bem antes do evento: conversamos sobre os momentos que importam para vocês, alinhamos com quem organiza e cuidamos para que nada passe despercebido.</p>
+        <p class="nota reveal d3">No salão, no campo ou na praia: a equipe e os equipamentos se ajustam ao lugar.</p>
+        <p class="nota-modelo reveal d3"><span class="nm-selo">Modelo</span>Aqui entram a sua foto e a sua história.</p>
+      </div>
+    </div>
+  </section>
+
+  <div class="faixa off-noite alt" aria-hidden="true"></div>
+
+  <!-- ======================= COMO TRABALHAMOS ======================= -->
+  <section class="imp dark" aria-labelledby="impTitulo">
+    <div class="imp-foto"><img src="https://images.unsplash.com/photo-1510076857177-7470076d4098?auto=format&amp;fit=crop&amp;w=1600&amp;q=75" srcset="https://images.unsplash.com/photo-1510076857177-7470076d4098?auto=format&amp;fit=crop&amp;w=900&amp;q=75 900w, https://images.unsplash.com/photo-1510076857177-7470076d4098?auto=format&amp;fit=crop&amp;w=1600&amp;q=75 1600w, https://images.unsplash.com/photo-1510076857177-7470076d4098?auto=format&amp;fit=crop&amp;w=2200&amp;q=75 2200w" sizes="100vw" alt="Salão de festas decorado, com lustre e cortinas, sem pessoas" width="1600" height="1067" loading="lazy" decoding="async"></div>
+    <div class="wrap imp-inner">
+      <h2 class="eyebrow linha reveal" id="impTitulo">Como trabalhamos</h2>
+      <ul class="frases">
+        <li class="reveal">Antes do dia, um <em>roteiro</em> combinado com vocês</li>
+        <li class="reveal">Durante, dois olhares para <em>nenhum momento</em> passar</li>
+        <li class="reveal">Depois, a galeria em até <em>15 dias</em></li>
+        <li class="reveal">E um filme com a <em>cara de vocês</em></li>
+      </ul>
+      <p class="nota-modelo reveal"><span class="nm-selo">Modelo</span>Frases de exemplo: na sua versão, com as suas palavras e os seus prazos.</p>
+    </div>
+  </section>
+
+  <!-- ======================= TRABALHOS ======================= -->
+  <section class="videos dark" id="secVideos" aria-label="Trabalhos recentes">
+    <div class="wrap videos-head">
+      <div>
+        <p class="eyebrow linha reveal">Trabalhos recentes</p>
+        <h2 class="reveal d1">Um pouco do que já <em>registramos</em></h2>
+      </div>
+      <div class="lado">
+        <p class="reveal d2">Na sua versão, aqui ficam os seus vídeos e galerias reais, abrindo dentro da página. Toque num card para ver como funciona.</p>
+        <p class="nota-modelo reveal d2"><span class="nm-selo">Modelo</span>Aqui entram os seus trabalhos.</p>
+      </div>
+    </div>
+    <div class="strip" id="strip">
+      <article class="card reveal" data-title="Casamento · Campinas">
+        <img src="https://images.unsplash.com/photo-1453857271477-4f9a4081966e?auto=format&amp;fit=crop&amp;w=600&amp;h=800&amp;q=75" alt="" width="600" height="800" loading="lazy" decoding="async">
+        <button class="card-play" type="button" aria-label="Ver como fica: Casamento · Campinas"><svg width="18" height="22" viewBox="0 0 18 22" fill="none" aria-hidden="true"><path d="M0 0L18 11L0 22V0Z" fill="#E2CB9A"/></svg></button>
+        <div class="card-info"><h3>Marina &amp; Rafael</h3><p>Casamento · Campinas</p></div>
+      </article>
+      <article class="card reveal d1" data-title="Formatura · Curitiba">
+        <img src="https://images.unsplash.com/photo-1540575467063-178a50c2df87?auto=format&amp;fit=crop&amp;w=600&amp;h=800&amp;q=75" alt="" width="600" height="800" loading="lazy" decoding="async">
+        <button class="card-play" type="button" aria-label="Ver como fica: Formatura · Curitiba"><svg width="18" height="22" viewBox="0 0 18 22" fill="none" aria-hidden="true"><path d="M0 0L18 11L0 22V0Z" fill="#E2CB9A"/></svg></button>
+        <div class="card-info"><h3>Medicina · Turma 48</h3><p>Formatura · Curitiba</p></div>
+      </article>
+      <article class="card reveal d2" data-title="Aniversário de 15 anos · Florianópolis">
+        <img src="https://images.unsplash.com/photo-1492684223066-81342ee5ff30?auto=format&amp;fit=crop&amp;w=600&amp;h=800&amp;q=75" alt="" width="600" height="800" loading="lazy" decoding="async">
+        <button class="card-play" type="button" aria-label="Ver como fica: Aniversário de 15 anos · Florianópolis"><svg width="18" height="22" viewBox="0 0 18 22" fill="none" aria-hidden="true"><path d="M0 0L18 11L0 22V0Z" fill="#E2CB9A"/></svg></button>
+        <div class="card-info"><h3>Helena</h3><p>15 anos · Florianópolis</p></div>
+      </article>
+      <article class="card reveal d3" data-title="Evento corporativo · Belo Horizonte">
+        <img src="https://images.unsplash.com/photo-1505373877841-8d25f7d46678?auto=format&amp;fit=crop&amp;w=600&amp;h=800&amp;q=75" alt="" width="600" height="800" loading="lazy" decoding="async">
+        <button class="card-play" type="button" aria-label="Ver como fica: Evento corporativo · Belo Horizonte"><svg width="18" height="22" viewBox="0 0 18 22" fill="none" aria-hidden="true"><path d="M0 0L18 11L0 22V0Z" fill="#E2CB9A"/></svg></button>
+        <div class="card-info"><h3>Lançamento Vértice</h3><p>Corporativo · Belo Horizonte</p></div>
+      </article>
+      <article class="card reveal d3" data-title="Bodas de prata · Campinas">
+        <img src="https://images.unsplash.com/photo-1465495976277-4387d4b0b4c6?auto=format&amp;fit=crop&amp;w=600&amp;h=800&amp;q=75" alt="" width="600" height="800" loading="lazy" decoding="async">
+        <button class="card-play" type="button" aria-label="Ver como fica: Bodas de prata · Campinas"><svg width="18" height="22" viewBox="0 0 18 22" fill="none" aria-hidden="true"><path d="M0 0L18 11L0 22V0Z" fill="#E2CB9A"/></svg></button>
+        <div class="card-info"><h3>Lúcia &amp; Antônio</h3><p>Bodas de prata · Campinas</p></div>
+      </article>
+      <article class="card reveal d3" data-title="Batizado · Campinas">
+        <img src="https://images.unsplash.com/photo-1511795409834-ef04bbd61622?auto=format&amp;fit=crop&amp;w=600&amp;h=800&amp;q=75" alt="" width="600" height="800" loading="lazy" decoding="async">
+        <button class="card-play" type="button" aria-label="Ver como fica: Batizado · Campinas"><svg width="18" height="22" viewBox="0 0 18 22" fill="none" aria-hidden="true"><path d="M0 0L18 11L0 22V0Z" fill="#E2CB9A"/></svg></button>
+        <div class="card-info"><h3>Batizado do Miguel</h3><p>Família · Campinas</p></div>
+      </article>
+      <article class="card reveal d3" data-title="Casamento ao ar livre · Florianópolis">
+        <img src="https://images.unsplash.com/photo-1529636798458-92182e662485?auto=format&amp;fit=crop&amp;w=600&amp;h=800&amp;q=75" alt="" width="600" height="800" loading="lazy" decoding="async">
+        <button class="card-play" type="button" aria-label="Ver como fica: Casamento ao ar livre · Florianópolis"><svg width="18" height="22" viewBox="0 0 18 22" fill="none" aria-hidden="true"><path d="M0 0L18 11L0 22V0Z" fill="#E2CB9A"/></svg></button>
+        <div class="card-info"><h3>Vanessa &amp; Leonardo</h3><p>Casamento ao ar livre · Florianópolis</p></div>
+      </article>
+    </div>
+    <div class="wrap strip-foot">
+      <div class="strip-progress" aria-hidden="true"><i id="stripBar"></i></div>
+      <p class="strip-dica" aria-hidden="true">Deslize para o lado</p>
+      <div class="strip-nav">
+        <button class="strip-btn" type="button" data-dir="-1" aria-label="Trabalho anterior"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true"><path d="M15 9H3M8 4L3 9l5 5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+        <button class="strip-btn" type="button" data-dir="1" aria-label="Próximo trabalho"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true"><path d="M3 9h12M10 4l5 5-5 5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ======================= QUEM JÁ CONTRATOU ======================= -->
+  <div id="secDepoimentos">
+    <div class="faixa noite-off" aria-hidden="true"></div>
+    <section class="viveu light" aria-label="Depoimentos">
+      <div class="wrap">
+        <div class="viveu-cab">
+          <p class="eyebrow linha reveal">Quem já contratou</p>
+          <h2 class="reveal d1">O que os clientes <em>contam</em></h2>
+          <p class="nota-modelo reveal d2"><span class="nm-selo">Exemplo</span>Depoimentos de exemplo: na sua versão, os dos seus clientes.</p>
+        </div>
+        <figure class="depo-grande reveal">
+          <blockquote>A gente reviveu o dia inteiro pelas fotos.</blockquote>
+          <figcaption>Clara &amp; Otávio <span>· casamento</span><span class="ex">exemplo</span></figcaption>
+        </figure>
+        <div class="depos">
+          <figure class="depo reveal"><blockquote>Chegaram sabendo o roteiro de cor. Ninguém da família precisou explicar nada, e nenhum momento ficou de fora.</blockquote><figcaption>Helena <span>· 15 anos</span><span class="ex">exemplo</span></figcaption></figure>
+          <figure class="depo reveal d1"><blockquote>O vídeo do lançamento foi usado na campanha inteira do ano. Entrega no prazo e com o padrão que a gente pediu.</blockquote><figcaption>Vértice Arquitetura <span>· corporativo</span><span class="ex">exemplo</span></figcaption></figure>
+          <figure class="depo reveal d2"><blockquote>A galeria chegou em duas semanas e a turma inteira baixou tudo. Foi a melhor escolha da comissão.</blockquote><figcaption>Turma 48 <span>· formatura</span><span class="ex">exemplo</span></figcaption></figure>
+        </div>
+        <dl class="cred reveal">
+          <div><dt>5,0</dt><dd>nota no Google<span class="ex">exemplo</span></dd></div>
+          <div><dt>100%</dt><dd>dos clientes recomendam<span class="ex">exemplo</span></dd></div>
+          <div><dt>8 anos</dt><dd>registrando eventos<span class="ex">exemplo</span></dd></div>
+          <div><dt>300+</dt><dd>eventos realizados<span class="ex">exemplo</span></dd></div>
+        </dl>
+      </div>
+    </section>
+    <div class="faixa off-noite" aria-hidden="true"></div>
+  </div>
+
+  <!-- ======================= A PROPOSTA (a folha do investimento) ======================= -->
+  <section class="proposta dark" id="investimento" aria-label="A proposta: opções e investimento">
+    <div class="wrap">
+      <article class="folha reveal">
+        <div class="folha-cab">
+          <p class="eyebrow linha">Proposta comercial</p>
+          <h2>O <em>investimento</em></h2>
+          <p class="folha-intro" id="pIntro"></p>
+          <p class="nota-modelo"><span class="nm-selo">Modelo</span>Opções, valores e entregáveis de exemplo: na sua, os seus.</p>
+        </div>
+        <dl class="resumo" id="pResumo"></dl>
+
+        <h3 class="divisor" id="pOpcoesTitulo"></h3>
+        <div class="opcoes" id="pOpcoes"></div>
+
+        <div class="detalhes" id="pDetalhes">
+          <div class="col">
+            <div class="bloco" id="blocoInclui"><h3 id="pIncluiTitulo">Em todas as opções</h3><ul class="lista" id="pInclui"></ul></div>
+            <div class="bloco" id="blocoAdic"><h3>Adicionais</h3><div id="pAdic"></div></div>
+          </div>
+          <div class="col">
+            <div class="bloco" id="blocoCond"><h3>Condições de pagamento</h3><ul class="lista" id="pCond"></ul></div>
+            <div class="bloco" id="blocoObs"><h3>Observações</h3><p class="obs" id="pObs"></p></div>
+          </div>
+        </div>
+
+        <div class="adaptavel nota-modelo">
+          <span class="nm-selo">Proposta adaptável</span>
+          <p><b>Feita com os seus entregáveis.</b> Na sua versão, cada opção é criada com o que você entrega de verdade: pacotes, itens, adicionais e condições do seu jeito, e os nomes dos valores também são seus.</p>
+        </div>
+
+        <p class="validade" id="pValidade"></p>
+
+        <div class="acoes">
+          <a class="btn btn-solid" id="waReservar" href="#folhaWa"><span>Quero reservar minha data</span><span class="arrow" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M2 8h11M8 3l5 5-5 5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span></a>
+          <a class="btn" id="waDuvida" href="#folhaWa"><span>Tirar uma dúvida</span><span class="arrow" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M2 8h11M8 3l5 5-5 5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span></a>
+        </div>
+      </article>
+    </div>
+  </section>
+
+  <div class="faixa noite-off" aria-hidden="true"></div>
+
+  <!-- ======================= ESTA PÁGINA É UM MODELO (só na demonstração) ======================= -->
+  <section class="sob light so-demo" id="secSobMedida" aria-labelledby="sobTitulo">
+    <div class="wrap sob-grid">
+      <div class="sob-cab">
+        <p class="eyebrow linha reveal">Sob medida</p>
+        <h2 class="reveal d1" id="sobTitulo">Esta página é um <em>modelo</em>.</h2>
+        <p class="sob-lead reveal d1">A sua nasce do seu trabalho.</p>
+        <p class="reveal d2">Tudo aqui se adapta: cada cliente recebe um link só dele, com o nome, a data e as opções que você montou no painel, criadas com os seus entregáveis. O sistema inteiro, painel e página da proposta, é entregue personalizado para o seu negócio, seja ele um estúdio, uma banda, um buffet ou uma consultoria.</p>
+        <div class="acoes reveal d3">
+          <a class="btn btn-solid" data-rk href="https://wa.me/5542999246208" target="_blank" rel="noopener"><span>Quero uma página assim</span><span class="arrow" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M2 8h11M8 3l5 5-5 5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span></a>
+          <a class="btn" href="../"><span>Conhecer o painel</span><span class="arrow" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M2 8h11M8 3l5 5-5 5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span></a>
+        </div>
+      </div>
+      <ol class="indice">
+        <li class="reveal"><span class="n">01</span><div><h3>A sua marca e as suas cores</h3><p>O design desta página e do painel é feito com a paleta da sua marca: logo, cores e tipografia do seu trabalho, do começo ao fim.</p></div></li>
+        <li class="reveal d1"><span class="n">02</span><div><h3>As suas fotos e vídeos</h3><p>Registros reais dos seus trabalhos, abrindo dentro da página.</p></div></li>
+        <li class="reveal d1"><span class="n">03</span><div><h3>As suas opções e valores</h3><p>Pacotes, formações, turnos ou planos: do jeito que você vende hoje, com os nomes que você usa.</p></div></li>
+        <li class="reveal d2"><span class="n">04</span><div><h3>Os seus entregáveis</h3><p>O que entra em cada opção, os adicionais e as suas condições.</p></div></li>
+        <li class="reveal d2"><span class="n">05</span><div><h3>Os seus depoimentos</h3><p>As palavras dos seus clientes, no lugar dos exemplos.</p></div></li>
+      </ol>
+    </div>
+  </section>
+
+  <div class="faixa off-noite" aria-hidden="true"></div>
+
+  <!-- ======================= FECHO ======================= -->
+  <section class="fecho dark" aria-label="Encerramento">
+    <div class="fecho-img"><img src="https://images.unsplash.com/photo-1554048612-b6a482bc67e5?auto=format&amp;fit=crop&amp;w=1400&amp;q=75" srcset="https://images.unsplash.com/photo-1554048612-b6a482bc67e5?auto=format&amp;fit=crop&amp;w=800&amp;q=75 800w, https://images.unsplash.com/photo-1554048612-b6a482bc67e5?auto=format&amp;fit=crop&amp;w=1400&amp;q=75 1400w" sizes="(min-width: 900px) 50vw, 100vw" alt="Mão erguendo uma câmera contra o sol" width="1400" height="934" loading="lazy" decoding="async"></div>
+    <div class="fecho-copy">
+      <p class="eyebrow linha reveal">Até o grande dia</p>
+      <h2 class="reveal d1">Que o seu evento fique <em>guardado</em> do jeito que foi vivido.</h2>
+      <p class="assinatura reveal d2"><span data-marca>Aurora Studio</span></p>
+      <p class="nota-modelo reveal d3"><span class="nm-selo">Modelo</span>Página modelo criada pela RK Performance.</p>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <a class="rk-logo" href="https://rkperformance.com.br" target="_blank" rel="noopener" aria-label="RK Performance"><span class="rk">RK</span><span class="sep" aria-hidden="true"></span><span class="perf">PERFORMANCE</span></a>
+  <a id="rodapeRk" href="https://rkperformance.com.br" target="_blank" rel="noopener">Página modelo · RK Performance</a>
+  <a class="so-demo" href="../">Conhecer o painel</a>
+</footer>
+
+<a class="wa-float oculto" id="waFloat" href="#folhaWa" aria-label="Falar com a Aurora no WhatsApp">
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2a9.9 9.9 0 0 0-8.5 15.1L2 22l5-1.4A10 10 0 1 0 12 2Zm0 1.8a8.2 8.2 0 1 1-4.2 15.2l-.3-.2-3 .8.8-2.9-.2-.3A8.2 8.2 0 0 1 12 3.8Zm-3.1 4c-.2 0-.5 0-.7.3-.2.3-.9.9-.9 2.1s.9 2.4 1 2.6c.2.2 1.8 2.8 4.4 3.8 2.2.9 2.6.7 3.1.7.5-.1 1.5-.6 1.7-1.2.2-.6.2-1.1.2-1.2l-.5-.3-1.7-.8c-.2-.1-.4-.1-.6.1l-.8 1c-.1.2-.3.2-.5.1a6.7 6.7 0 0 1-2-1.2 7.5 7.5 0 0 1-1.4-1.7c-.1-.2 0-.4.1-.5l.4-.5c.1-.2.2-.3.3-.5v-.5L9.6 8.2c-.2-.4-.4-.4-.7-.4Z"/></svg>
+</a>
+</div>
+
+<!-- ======================= FOLHAS DA DEMONSTRAÇÃO ======================= -->
+<dialog class="sheet" id="folhaWa" aria-labelledby="folhaWaTitulo">
+  <div class="sheet-in">
+    <button class="sheet-fechar-x" type="button" data-fechar aria-label="Fechar"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M1 1l12 12M13 1L1 13" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg></button>
+    <p class="eyebrow linha">Página modelo</p>
+    <h2 id="folhaWaTitulo">Aqui o cliente fala <em>com você</em></h2>
+    <p class="sheet-txt">Na proposta de verdade, este botão abre o seu WhatsApp já com esta mensagem:</p>
+    <div class="wa-tela" role="group" aria-label="Mensagem que seria enviada">
+      <div class="wa-topo"><i aria-hidden="true">A</i><span><span data-marca>Aurora Studio</span><small>o seu WhatsApp</small></span></div>
+      <p class="wa-bolha"><span id="folhaWaMsg"></span><span class="hora" aria-hidden="true">agora</span></p>
+    </div>
+    <div class="sheet-acoes">
+      <a class="btn btn-solid" id="folhaWaRk" data-rk href="https://wa.me/5542999246208" target="_blank" rel="noopener"><span>Quero uma página assim</span><span class="arrow" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M2 8h11M8 3l5 5-5 5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span></a>
+      <button class="btn-texto" id="folhaWaFechar" type="button" data-fechar>Fechar</button>
+    </div>
+    <p class="sheet-rodape">Você fala direto com o João, da RK Performance.</p>
+  </div>
+</dialog>
+
+<dialog class="sheet" id="folhaVideo" aria-labelledby="folhaVideoTitulo">
+  <div class="sheet-in">
+    <div class="video-capa" aria-hidden="true"><img id="folhaVideoImg" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==" alt=""><span><svg width="18" height="22" viewBox="0 0 18 22" fill="none"><path d="M0 0L18 11L0 22V0Z" fill="#E2CB9A"/></svg></span></div>
+    <button class="sheet-fechar-x" type="button" data-fechar aria-label="Fechar"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M1 1l12 12M13 1L1 13" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg></button>
+    <p class="eyebrow linha">Trabalhos recentes</p>
+    <h2 id="folhaVideoTitulo">Na sua versão, aqui abre o <em>vídeo</em> ou a galeria do seu trabalho.</h2>
+    <p class="sheet-txt"><span id="folhaVideoTrabalho"></span> Os vídeos tocam com som dentro do card, um de cada vez, sem sair da página.</p>
+    <div class="sheet-acoes">
+      <a class="btn btn-solid" data-rk href="https://wa.me/5542999246208" target="_blank" rel="noopener"><span>Quero uma página assim</span><span class="arrow" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M2 8h11M8 3l5 5-5 5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span></a>
+      <button class="btn-texto" id="folhaVideoFechar" type="button" data-fechar>Fechar</button>
+    </div>
+  </div>
+</dialog>
+
+<!-- seta dos botões criados por script (clonada; nenhum dado da API passa por innerHTML) -->
+<template id="tSeta"><span class="arrow" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M2 8h11M8 3l5 5-5 5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span></template>
+
+<script src="proposta.js"></script>
+</body>
+</html>

@@ -1,0 +1,30 @@
+name = "rk-painel-demo"
+main = "src/index.js"
+compatibility_date = "2026-09-01"
+workers_dev = true
+
+[[d1_databases]]
+binding = "DB"
+database_name = "rk-painel-demo"
+database_id = "00000000-0000-0000-0000-000000000000"   # troque pelo id do seu D1 (npx wrangler d1 create)
+
+[vars]
+# Sites que podem chamar a API (o painel e a página da proposta). Só endereços publicados: o local de teste
+# (http://localhost:8126) entra só no wrangler dev, com --var ORIGENS:http://localhost:8126.
+# https://joaovitorrk.github.io é o endereço provisório e é uma origem só para TODOS os sites do João no
+# GitHub Pages (eles dividem o localStorage). Até o domínio entrar no ar, use lá só o modo visitante (o painel
+# recusa a senha de administrador em *.github.io). Quando painel.rkperformance.com.br estiver no ar, deixe
+# só ORIGENS = "https://painel.rkperformance.com.br".
+ORIGENS = "https://painel.rkperformance.com.br,https://joaovitorrk.github.io"
+# "1" = demonstração pública: os dados fictícios (src/demo.js) se renovam sozinhos (quando passam de 6 dias)
+# e existe o modo visitante (só leitura, só as linhas de exemplo). Na versão de um cliente de verdade, apague
+# esta linha (ou ponha "0"): o modo visitante fica desligado mesmo que alguém grave a SESSAO_CHAVE.
+DEMO = "1"
+
+# Secrets (nunca neste arquivo; rodar dentro desta pasta):
+#   ADMIN_SENHA   senha do painel, definida pelo João (quem entra com ela grava de verdade)
+#                 npx wrangler secret put ADMIN_SENHA
+#   SESSAO_CHAVE  chave aleatória que assina as sessões do modo visitante (só leitura). Só na demonstração.
+#                 Sem ela, o login "visitante" responde 503. Gerar e gravar sem exibir a chave:
+#                 node -e "process.stdout.write(require('crypto').randomBytes(32).toString('base64url'))" | npx wrangler secret put SESSAO_CHAVE
+#                 Na cópia de um cliente de verdade, NUNCA grave a SESSAO_CHAVE.

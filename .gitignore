@@ -1,0 +1,5 @@
+node_modules/
+.wrangler/
+api/.dev.vars
+testes-e2e/prints/
+testes-e2e/termos-proibidos.txt

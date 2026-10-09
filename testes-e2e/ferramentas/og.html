@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>OG painel RK</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Jost:wght@200;300;400;500&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  /* Padrão visual v2 da RK (DESIGN.md): marfim, noite, dourado como fio; Jost + DM Mono */
+  :root{
+    --marfim:#F7F3EE; --marfim2:#EFE8DE; --branco:#FCFAF7;
+    --noite:#16120F; --noite2:#1E1813; --noite3:#2A2119;
+    --tinta:#2A211C; --tinta2:#6B5F55; --tinta3:#9A8E82;
+    --off:#F2EBE1; --mudo:#B3A595;
+    --dourado:#C9A771; --dourado2:#E2CB9A; --dourado3:#9E7F3F; --champanhe:#EFE3C8;
+    --ok:#5BAA86; --atencao:#C99A3C;
+    --font:'Jost',sans-serif; --mono:'DM Mono',monospace;
+    --fio:rgba(42,33,28,.12); --fio-escuro:rgba(201,167,113,.22);
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:#333;font-family:var(--font);font-weight:300;-webkit-font-smoothing:antialiased;color:var(--off)}
+  .og{position:relative;width:1200px;height:630px;overflow:hidden;background:var(--noite);margin:0 0 40px}
+  .grain{position:absolute;inset:0;z-index:6;pointer-events:none;opacity:.08;mix-blend-mode:overlay;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+  .nevoa{position:absolute;inset:0;z-index:1;pointer-events:none;background:radial-gradient(70% 80% at 72% 38%,rgba(201,167,113,.16),rgba(22,18,15,0) 62%)}
+
+  .logo{display:flex;align-items:center;gap:14px;line-height:1}
+  .logo .rk{font-weight:300;font-size:30px;letter-spacing:.06em;color:var(--dourado)}
+  .logo .sep{width:1px;height:26px;background:var(--dourado);opacity:.7}
+  .logo .perf{font-size:12px;letter-spacing:.34em;font-weight:500;color:var(--mudo)}
+
+  .eyebrow{display:inline-flex;align-items:center;gap:16px;font-size:12.5px;font-weight:500;letter-spacing:.3em;text-transform:uppercase;color:var(--dourado)}
+  .eyebrow::before{content:"";width:44px;height:1px;background:var(--dourado)}
+
+  .tit{font-weight:200;letter-spacing:.01em;line-height:1.02;color:var(--off)}
+  .tit em{font-style:normal;font-weight:200;background:linear-gradient(100deg,#EFE3C8 0%,#C9A771 48%,#A8883F 100%);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .sub{font-size:22px;line-height:1.5;color:var(--mudo);text-wrap:balance;font-weight:300}
+  .fio{height:1px;background:linear-gradient(90deg,var(--dourado),rgba(201,167,113,0))}
+  .url{font-family:var(--mono);font-size:13px;font-weight:400;letter-spacing:.08em;color:var(--mudo)}
+
+  /* ============ OG PAINEL ============ */
+  #painel .txt{position:absolute;z-index:5;left:72px;top:60px;bottom:56px;width:600px;display:flex;flex-direction:column}
+  #painel .eyebrow{margin-top:70px}
+  #painel .tit{font-size:70px;margin-top:22px}
+  #painel .sub{margin-top:26px;max-width:24ch}
+  #painel .pe{margin-top:auto;display:flex;align-items:center;gap:22px}
+  .entrar{display:inline-flex;align-items:center;gap:14px;border:1px solid var(--dourado);border-radius:2px;padding:16px 26px;font-weight:500;font-size:12.5px;letter-spacing:.26em;text-transform:uppercase;color:var(--dourado2)}
+  .entrar svg{flex:none}
+
+  /* celular com o painel (marfim, como o app de verdade) */
+  .cel{position:absolute;z-index:5;right:96px;top:56px;width:300px;height:620px;border-radius:40px;background:#0E0B09;padding:10px;
+    box-shadow:0 40px 90px rgba(0,0,0,.7),0 0 0 1px rgba(226,203,154,.18);transform:rotate(-4deg);transform-origin:60% 30%}
+  .tela{position:relative;width:100%;height:100%;border-radius:31px;overflow:hidden;background:var(--marfim);color:var(--tinta);padding:40px 16px 0}
+  .tela .ilha{position:absolute;top:10px;left:50%;width:80px;height:22px;margin-left:-40px;border-radius:12px;background:#0E0B09}
+  .tela .topo{display:flex;align-items:center;justify-content:space-between}
+  .tela .topo .logo{gap:7px}
+  .tela .topo .logo .rk{font-size:14px;color:var(--dourado3)}
+  .tela .topo .logo .sep{height:12px;background:var(--dourado3)}
+  .tela .topo .logo .perf{font-size:6.5px;letter-spacing:.3em;color:var(--tinta2)}
+  .tela .sair{font-size:7px;font-weight:500;letter-spacing:.22em;color:var(--tinta2);border:1px solid var(--fio);padding:5px 9px}
+  .abas{display:flex;margin-top:14px;border-bottom:1px solid var(--fio)}
+  .abas span{flex:1;text-align:center;font-size:7.5px;font-weight:500;letter-spacing:.22em;text-transform:uppercase;color:var(--tinta3);padding:7px 0 8px;position:relative}
+  .abas span.on{color:var(--dourado3)}
+  .abas span.on::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:1px;background:var(--dourado3)}
+  .tela h3{font-weight:200;font-size:22px;letter-spacing:.01em;margin-top:14px;line-height:1}
+  .tela h3::after{content:"";display:block;width:38px;height:1px;background:var(--dourado3);margin-top:7px}
+  .mes{display:flex;align-items:center;justify-content:space-between;margin-top:10px;font-weight:300;font-size:12px;color:var(--tinta)}
+  .mes i{font-style:normal;color:var(--tinta2);font-size:13px;width:22px;height:22px;border:1px solid var(--fio);display:grid;place-items:center}
+  .nums{display:grid;grid-template-columns:1fr 1fr 1fr;margin-top:10px;border-top:1px solid var(--fio);border-bottom:1px solid var(--fio)}
+  .nums div{padding:8px 6px 8px 0}
+  .nums div+div{padding-left:8px;border-left:1px solid var(--fio)}
+  .nums b{display:block;font-weight:200;font-size:19px;line-height:1;font-variant-numeric:tabular-nums;color:var(--tinta)}
+  .nums b.ok{color:var(--ok)}
+  .nums span{display:block;margin-top:5px;font-size:6px;line-height:1.3;letter-spacing:.14em;text-transform:uppercase;color:var(--tinta3)}
+  .cal{margin-top:9px;background:var(--branco);border:1px solid var(--fio);padding:7px 7px 5px}
+  .sem,.grade{display:grid;grid-template-columns:repeat(7,1fr);text-align:center}
+  .sem span{font-size:6.5px;letter-spacing:.14em;color:var(--tinta3);padding-bottom:4px}
+  .sem span:last-child{color:var(--dourado3)}
+  .grade span{position:relative;height:24px;font-size:9px;color:var(--tinta);font-family:var(--mono);padding-top:4px}
+  .grade span.sab{background:var(--marfim2)}
+  .grade span.x{color:transparent}
+  .grade span.hoje{outline:1px solid var(--dourado3);outline-offset:-2px}
+  .grade span i{position:absolute;bottom:3px;left:50%;width:5px;height:5px;margin-left:-2.5px;border-radius:50%}
+  .grade span i.f{background:var(--ok)}
+  .grade span i.a{background:transparent;border:1px solid var(--atencao)}
+  .grade span i.f2{margin-left:-6px} .grade span i.f2+i{margin-left:1px}
+  .evts{margin-top:9px;display:grid}
+  .evt{display:flex;gap:9px;align-items:center;padding:8px 2px;border-bottom:1px solid var(--fio)}
+  .evt .d{width:28px;text-align:center;font-family:var(--mono);font-size:14px;line-height:1;color:var(--tinta)}
+  .evt .d small{display:block;font-family:var(--font);font-weight:500;font-size:6px;letter-spacing:.12em;text-transform:uppercase;color:var(--tinta3);margin-top:3px}
+  .evt .t{flex:1;min-width:0}
+  .evt .t b{display:block;font-size:10px;font-weight:400;color:var(--tinta)}
+  .evt .t span{display:block;font-size:7px;color:var(--tinta3);margin-top:2px;letter-spacing:.04em}
+  .evt .t span.ok{color:var(--ok)} .evt .t span.at{color:var(--atencao)}
+  .evt .v{font-family:var(--mono);font-size:10px;color:var(--dourado3);font-variant-numeric:tabular-nums}
+
+  /* ============ OG PROPOSTA ============ */
+  #proposta{background:var(--noite)}
+  #proposta .txt{position:absolute;z-index:5;left:72px;top:60px;bottom:56px;width:520px;display:flex;flex-direction:column}
+  #proposta .eyebrow{margin-top:74px}
+  #proposta .tit{font-size:84px;margin-top:22px;line-height:.98}
+  #proposta .tit .l{display:block}
+  #proposta .sub{margin-top:28px;max-width:21ch}
+  #proposta .pe{margin-top:auto;display:flex;align-items:center;gap:18px}
+  #proposta .pe .fio{width:120px}
+  .janelas{position:absolute;z-index:3;right:58px;top:0;bottom:0;width:560px;display:flex;align-items:center;justify-content:center;gap:22px}
+  .jan{position:relative;overflow:hidden;border-radius:999px 999px 0 0;box-shadow:0 30px 70px rgba(0,0,0,.6);outline:1px solid rgba(201,167,113,.35);outline-offset:8px}
+  .jan img{width:100%;height:100%;object-fit:cover;filter:brightness(.72) saturate(.85)}
+  .jan.centro img{filter:brightness(.85) saturate(.9)}
+  .jan::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(22,18,15,0) 55%,rgba(22,18,15,.5))}
+  .jan.lado{width:150px;height:330px;margin-top:40px}
+  .jan.centro{width:200px;height:440px}
+  .chao{position:absolute;z-index:4;right:58px;bottom:50px;width:560px;text-align:center}
+  .chao span{font-size:11.5px;font-weight:500;letter-spacing:.3em;text-transform:uppercase;color:var(--mudo)}
+</style>
+</head>
+<body>
+
+<!-- ===================== OG DO PAINEL ===================== -->
+<div class="og" id="painel">
+  <div class="nevoa"></div>
+
+  <div class="txt">
+    <div class="logo"><span class="rk">RK</span><span class="sep"></span><span class="perf">PERFORMANCE</span></div>
+    <span class="eyebrow">Para quem vende por proposta</span>
+    <h1 class="tit">Painel de propostas<br><em>para o seu negócio</em></h1>
+    <p class="sub">Agenda, propostas e faturamento num lugar só. Entre como visitante e mexa à vontade.</p>
+    <div class="pe">
+      <span class="entrar">Entrar como visitante
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M2 8h11M8 3l5 5-5 5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </span>
+      <span class="url">painel.rkperformance.com.br</span>
+    </div>
+  </div>
+
+  <div class="cel" aria-hidden="true">
+    <div class="tela">
+      <span class="ilha"></span>
+      <div class="topo">
+        <div class="logo"><span class="rk">RK</span><span class="sep"></span><span class="perf">PERFORMANCE</span></div>
+        <span class="sair">SAIR</span>
+      </div>
+      <div class="abas"><span class="on">Agenda</span><span>Propostas</span><span>Clientes</span></div>
+      <h3>Sua agenda</h3>
+      <div class="mes"><i>‹</i><span>Novembro de 2026</span><i>›</i></div>
+      <div class="nums">
+        <div><b>2</b><span>Eventos · R$ 13.300</span></div>
+        <div><b class="ok">3</b><span>Sábados com vaga</span></div>
+        <div><b>1</b><span>Aguardando resposta</span></div>
+      </div>
+      <div class="cal">
+        <div class="sem"><span>D</span><span>S</span><span>T</span><span>Q</span><span>Q</span><span>S</span><span>S</span></div>
+        <div class="grade">
+          <span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span class="sab">7<i class="f"></i></span>
+          <span>8</span><span class="hoje">9</span><span>10</span><span>11</span><span>12</span><span>13</span><span class="sab">14</span>
+          <span>15</span><span>16</span><span>17</span><span>18</span><span>19</span><span>20</span><span class="sab">21</span>
+          <span>22</span><span>23</span><span>24</span><span>25</span><span>26</span><span>27</span><span class="sab">28<i class="f"></i></span>
+          <span>29</span><span>30</span><span class="x">1</span><span class="x">2</span><span class="x">3</span><span class="x">4</span><span class="x">5</span>
+        </div>
+      </div>
+      <div class="evts">
+        <div class="evt"><span class="d">7<small>sáb · 16h</small></span><span class="t"><b>Beatriz &amp; Thiago</b><span class="ok">Fechado · Premium</span></span><span class="v">R$ 8.400</span></div>
+        <div class="evt"><span class="d">28<small>sáb · 19h</small></span><span class="t"><b>Helena · 15 anos</b><span class="ok">Fechado · Completa</span></span><span class="v">R$ 4.900</span></div>
+        <div class="evt"><span class="d">12<small>sex · 9h</small></span><span class="t"><b>Convenção Prisma</b><span class="at">Aguardando · aberta 3 vezes</span></span><span class="v">2.400 a 7.500</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="grain"></div>
+</div>
+
+<!-- ===================== OG DA PROPOSTA ===================== -->
+<div class="og" id="proposta">
+  <div class="nevoa"></div>
+  <div class="janelas" aria-hidden="true">
+    <div class="jan lado"><img src="https://images.unsplash.com/photo-1529636798458-92182e662485?auto=format&fit=crop&w=500&h=1100&q=80" alt=""></div>
+    <div class="jan centro"><img src="https://images.unsplash.com/photo-1571332760709-8943098311f1?auto=format&fit=crop&w=600&h=1320&q=80" alt=""></div>
+    <div class="jan lado"><img src="https://images.unsplash.com/photo-1492684223066-81342ee5ff30?auto=format&fit=crop&w=500&h=1100&q=80" alt=""></div>
+  </div>
+  <div class="chao" aria-hidden="true"><span>Exemplo fictício · Aurora Studio</span></div>
+
+  <div class="txt">
+    <div class="logo"><span class="rk">RK</span><span class="sep"></span><span class="perf">PERFORMANCE</span></div>
+    <span class="eyebrow">Página modelo</span>
+    <h1 class="tit"><span class="l">Proposta</span><span class="l"><em>comercial</em></span></h1>
+    <p class="sub">O cliente abre o link, vê as opções e reserva a data.</p>
+    <div class="pe">
+      <span class="fio"></span><span class="url">rkperformance.com.br</span>
+    </div>
+  </div>
+  <div class="grain"></div>
+</div>
+
+</body>
+</html>

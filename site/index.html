@@ -1,0 +1,2649 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<!-- ============================================================
+     PAINEL DE PROPOSTAS PARA PRESTADORES DE SERVIÇO — base RK Performance
+     Agenda · Propostas · Clientes. 3 perguntas → salvar → link pronto para mandar no WhatsApp.
+     "Fechou?" marca a proposta como fechada (com o valor e os adicionais) e alimenta o faturamento.
+     O resto (textos das opções, adicionais, pagamento…) vem da proposta padrão, em "Mais opções".
+     Demonstração pública (CONFIG.DEMO): a senha "visitante" abre um modo em que nada vai para o
+     servidor; tudo roda num simulador no navegador (Sandbox, localStorage "rk_demo_sandbox_v1").
+     API: Cloudflare Worker "rk-painel-demo" (D1). Rotas: api/README.md
+     RK Performance · out/2026
+     ============================================================ -->
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Painel de propostas · RK Performance</title>
+<meta name="description" content="Propostas, agenda e faturamento do seu negócio num lugar só. Entre como visitante e mexa à vontade.">
+<meta name="robots" content="noindex, nofollow">
+<meta name="format-detection" content="telephone=no">
+<meta name="theme-color" content="#16120F">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="RK Performance">
+<meta property="og:title" content="Painel de propostas · RK Performance">
+<meta property="og:description" content="Propostas, agenda e faturamento do seu negócio num lugar só. Entre como visitante e conheça.">
+<meta property="og:url" content="https://painel.rkperformance.com.br/">
+<meta property="og:image" content="https://painel.rkperformance.com.br/media/og-painel.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" type="image/png" href="media/favicon.png">
+<link rel="apple-touch-icon" href="media/apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jost:wght@200;300;400;500&family=DM+Mono:wght@400&display=swap">
+<link rel="stylesheet" href="painel.css">
+</head>
+<body>
+
+<!-- MODO VISITANTE: faixa fixa no topo, em todas as telas do visitante -->
+<div class="faixa-visitante" id="faixaVisitante" role="region" aria-label="Modo visitante" hidden>
+  <p><b>Modo visitante</b> · mexa à vontade: nada é salvo nem publicado.</p>
+  <button class="texto-link" type="button" id="btRecomecar">Recomeçar</button>
+</div>
+
+<!-- LOGIN -->
+<section class="login" id="vLogin" hidden>
+  <form id="fLogin">
+    <span class="logo grande marca" role="img" aria-label="RK Performance"><span class="rk" aria-hidden="true">RK</span><span class="sep" aria-hidden="true"></span><span class="perf" aria-hidden="true">PERFORMANCE</span></span>
+    <h1>Painel de propostas</h1>
+    <p class="lead">Propostas, agenda e faturamento do seu negócio num lugar só.</p>
+    <p class="nota-cores">Na sua versão, o painel e a página da proposta são feitos com a paleta do seu site: todo o sistema é entregue personalizado para o seu negócio.</p>
+    <div class="senha-caixa">
+      <input type="password" id="senha" autocomplete="current-password" placeholder="Senha do painel" required aria-label="Senha do painel">
+      <button type="button" id="btOlho" aria-pressed="false">Mostrar</button>
+    </div>
+    <div class="aviso" id="loginErro" role="alert" hidden></div>
+    <button class="b b-ouro b-cheio" type="submit" id="btEntrar">Entrar</button>
+    <div class="convite" id="loginConvite">
+      <p>Quer conhecer? Digite <b>visitante</b>.</p>
+      <button class="b b-contorno b-cheio" type="submit" id="btVisitante">Entrar como visitante</button>
+      <small>Sem cadastro. Nada do que você fizer aqui é salvo.</small>
+    </div>
+  </form>
+</section>
+
+<!-- PAINEL: agenda · propostas · clientes -->
+<section class="tela" id="vLista" hidden>
+  <div class="topo">
+    <span class="logo" role="img" aria-label="RK Performance"><span class="rk" aria-hidden="true">RK</span><span class="sep" aria-hidden="true"></span><span class="perf" aria-hidden="true">PERFORMANCE</span></span>
+    <span class="espaco"></span>
+    <button class="b b-pq so-visitante" type="button" id="btComoFunciona">Como funciona</button>
+    <button class="b b-pq" type="button" id="btSair">Sair</button>
+  </div>
+
+  <nav class="abas" id="abas" role="tablist" aria-label="Partes do painel">
+    <button type="button" role="tab" data-aba="hoje" aria-selected="true">Hoje</button>
+    <button type="button" role="tab" data-aba="agenda" aria-selected="false">Agenda</button>
+    <button type="button" role="tab" data-aba="contatos" aria-selected="false">Contatos</button>
+    <button type="button" role="tab" data-aba="propostas" aria-selected="false">Propostas</button>
+    <button type="button" role="tab" data-aba="clientes" aria-selected="false">Clientes</button>
+    <button type="button" role="tab" data-aba="financeiro" aria-selected="false">Financeiro</button>
+  </nav>
+
+  <!-- HOJE: o dia e o mês de relance -->
+  <div id="abaHoje" role="tabpanel">
+    <h2 class="titulo" id="hjSaudacao">Olá</h2>
+    <p class="sub-titulo" id="hjData"></p>
+    <div class="dica-visitante" data-dica="hoje" hidden>
+      <p>A primeira tela do dia: os eventos da semana, o que vence para receber, quem abriu a proposta e ainda não respondeu, e o mês em números comparado com os anteriores.</p>
+      <button class="dica-fechar" type="button" aria-label="Fechar a dica">×</button>
+    </div>
+    <div class="numeros" role="group" aria-label="O dia de relance">
+      <div><b id="hjEventos">–</b><span id="hjEventosRot">Eventos em 7 dias</span></div>
+      <div class="total"><b id="hjReceber">–</b><span>A receber na semana</span></div>
+      <div><b id="hjChamar">–</b><span>Para chamar</span></div>
+    </div>
+    <div id="hoje"></div>
+    <div class="secao mes-tit">Seu mês</div>
+    <div class="mes-nav">
+      <button class="b b-pq seta" type="button" id="dmAnt" aria-label="Mês anterior">‹</button>
+      <b id="dmTitulo" aria-live="polite"></b>
+      <button class="b b-pq seta" type="button" id="dmProx" aria-label="Próximo mês">›</button>
+    </div>
+    <div class="mes-hoje"><button class="texto-link" type="button" id="dmHoje" hidden>Voltar para este mês</button></div>
+    <div id="doMes"></div>
+  </div>
+
+  <!-- AGENDA: o seu mês -->
+  <div id="abaAgenda" role="tabpanel" hidden>
+    <h2 class="titulo">Sua agenda</h2>
+    <div class="dica-visitante" data-dica="agenda" hidden>
+      <p>O mês de relance: eventos fechados, propostas aguardando resposta e sábados livres. Toque num dia marcado para ver quem é.</p>
+      <button class="dica-fechar" type="button" aria-label="Fechar a dica">×</button>
+    </div>
+    <button class="b b-ouro b-cheio" type="button" id="btNovaAgenda">+ Nova proposta</button>
+    <div class="mes-nav">
+      <button class="b b-pq seta" type="button" id="mesAnt" aria-label="Mês anterior">‹</button>
+      <b id="mesTitulo" aria-live="polite"></b>
+      <button class="b b-pq seta" type="button" id="mesProx" aria-label="Próximo mês">›</button>
+    </div>
+    <div class="mes-hoje"><button class="texto-link" type="button" id="mesHoje" hidden>Voltar para este mês</button></div>
+    <div class="numeros" role="group" aria-label="Como está o mês">
+      <div><b id="mCasamentos">–</b><span id="mCasamentosRot">Eventos fechados</span></div>
+      <div class="livre"><b id="mLivres">–</b><span id="mLivresRot">Sábados com vaga</span></div>
+      <div><b id="mAguardando">–</b><span>Aguardando resposta</span></div>
+    </div>
+    <div class="cal" id="cal" role="group" aria-label="Calendário do mês"></div>
+    <p class="legenda"><span><i class="f"></i>Evento fechado</span><span><i class="a"></i>Proposta em aberto</span><span><i class="c"></i>Dia cheio (2)</span><span><i class="s"></i>Sábado</span></p>
+    <p class="vendas" id="mesVendas"></p>
+    <div class="secao" id="mesListaTit">Neste mês</div>
+    <div class="mes-lista" id="mesLista"></div>
+    <div class="secao">Próximos meses <small>toque num mês para ver</small></div>
+    <div class="meses" id="meses"></div>
+  </div>
+
+  <!-- CONTATOS: quem pediu preço -->
+  <div id="abaContatos" role="tabpanel" hidden>
+    <h2 class="titulo">Seus contatos</h2>
+    <p class="sub-titulo">Quem pediu preço, de onde veio e quando chamar de volta.</p>
+    <div class="dica-visitante" data-dica="contatos" hidden>
+      <p>Anote quem pediu preço e de onde veio. O painel lembra o dia de chamar de volta e mostra de onde vêm os clientes que fecham. O botão WhatsApp abre o seu WhatsApp com a mensagem escrita: você só aperta enviar.</p>
+      <button class="dica-fechar" type="button" aria-label="Fechar a dica">×</button>
+    </div>
+    <button class="b b-ouro b-cheio" type="button" id="btNovoContato">+ Novo contato</button>
+    <div class="numeros" role="group" aria-label="Contatos de relance">
+      <div><b id="ctChamar">–</b><span>Para chamar hoje</span></div>
+      <div><b id="ctSemProposta">–</b><span>Sem proposta</span></div>
+      <div class="total"><b id="ctFecharam">–</b><span>Fecharam</span></div>
+    </div>
+    <div id="contatos"></div>
+  </div>
+
+  <!-- PROPOSTAS: a negociação -->
+  <div id="abaPropostas" role="tabpanel" hidden>
+    <h2 class="titulo">Suas propostas</h2>
+    <div class="dica-visitante" data-dica="propostas" hidden>
+      <p>Crie a proposta de um cliente em 1 minuto e mande o link pelo WhatsApp. O cartão mostra quando o cliente abriu. Fechou? É só marcar.</p>
+      <button class="dica-fechar" type="button" aria-label="Fechar a dica">×</button>
+    </div>
+    <button class="b b-ouro b-cheio" type="button" id="btNova">+ Nova proposta</button>
+    <div class="cartao-modelo" id="cartaoModelo">
+      <div class="txt"><b>Sua proposta padrão</b><span>Monte uma vez: opções, valores, adicionais e condições. Toda proposta nova começa dela.</span></div>
+      <button class="b b-pq b-contorno" type="button" id="btModeloCartao">Ajustar</button>
+    </div>
+    <div class="filtros" id="filtros" role="group" aria-label="Quais propostas mostrar">
+      <button type="button" data-filtro="abertas" aria-pressed="true">Em aberto</button>
+      <button type="button" data-filtro="perdidas" aria-pressed="false">Não fechou</button>
+      <button type="button" data-filtro="todas" aria-pressed="false">Todas</button>
+    </div>
+    <div class="cards" id="lista"><p class="carregando">Carregando…</p></div>
+    <div class="rodape-lista"><button class="texto-link" type="button" id="btModelo">Ajustar a proposta padrão</button></div>
+  </div>
+
+  <!-- CLIENTES: quem fechou -->
+  <div id="abaClientes" role="tabpanel" hidden>
+    <h2 class="titulo">Seus clientes</h2>
+    <div class="dica-visitante" data-dica="clientes" hidden>
+      <p>Quem fechou vira cliente aqui. O faturamento se soma sozinho: filtre pela data do evento ou pela data em que fechou.</p>
+      <button class="dica-fechar" type="button" aria-label="Fechar a dica">×</button>
+    </div>
+    <div class="filtros dois" id="cliBase" role="group" aria-label="Contar pela data">
+      <button type="button" data-base="evento" aria-pressed="true">Data do evento</button>
+      <button type="button" data-base="fechou" aria-pressed="false">Data em que fechou</button>
+    </div>
+    <div class="periodos" id="cliPeriodo" role="group" aria-label="Período"></div>
+    <div class="duas datas-livres" id="cliDatas" hidden>
+      <label class="campo"><span>De</span><input type="date" id="cliDe"></label>
+      <label class="campo"><span>Até</span><input type="date" id="cliAte"></label>
+    </div>
+    <div class="numeros" id="resumo" role="group" aria-label="Faturamento do período">
+      <div><b id="rFechadas">–</b><span id="rFechadasRot">Eventos</span></div>
+      <div><b id="rMedio">–</b><span>Ticket médio</span></div>
+      <div class="total"><b id="rTotal">–</b><span>Faturamento</span></div>
+    </div>
+    <p class="periodo-txt" id="cliPeriodoTxt"></p>
+    <div id="cliMeses"></div>
+    <div id="clientes"></div>
+  </div>
+
+  <!-- FINANCEIRO: sinal, restante, a receber -->
+  <div id="abaFinanceiro" role="tabpanel" hidden>
+    <h2 class="titulo">Seu financeiro</h2>
+    <div class="dica-visitante" data-dica="financeiro" hidden>
+      <p>O sinal e o restante de cada evento fechado: o que já entrou, o que vence e o que está atrasado. Toque em “Recebi” quando o dinheiro cair.</p>
+      <button class="dica-fechar" type="button" aria-label="Fechar a dica">×</button>
+    </div>
+    <div class="numeros" role="group" aria-label="Como estão os pagamentos">
+      <div class="total"><b id="fReceber">–</b><span>A receber</span></div>
+      <div class="atraso zero" id="fAtrasadoCx"><b id="fAtrasado">–</b><span>Atrasado</span></div>
+      <div><b id="fRecebidoMes">–</b><span id="fRecebidoMesRot">Recebido no mês</span></div>
+    </div>
+    <div id="financeiro"></div>
+  </div>
+</section>
+
+<!-- EDITOR -->
+<section class="tela com-barra" id="vEditor" hidden>
+  <div class="topo">
+    <button class="b b-pq" type="button" id="btVoltar">← Voltar</button>
+    <span class="espaco"></span>
+  </div>
+  <h2 class="titulo" id="edTitulo">Nova proposta</h2>
+  <p class="sub-titulo" data-so="modelo">Toda proposta nova começa com o que estiver aqui.</p>
+  <div class="dica-visitante" data-dica="editor" data-modo="proposta" hidden>
+    <p>Preencha o cliente, a data e o local, e escolha as opções. Ao salvar, o link sai pronto para mandar no WhatsApp.</p>
+    <button class="dica-fechar" type="button" aria-label="Fechar a dica">×</button>
+  </div>
+  <div class="dica-visitante" data-dica="modelo" data-modo="modelo" hidden>
+    <p>Esta é a sua proposta padrão: tudo que você puser aqui já vem preenchido em cada proposta nova.</p>
+    <button class="dica-fechar" type="button" aria-label="Fechar a dica">×</button>
+  </div>
+
+  <div class="situacao" id="edSituacao" hidden>
+    <div class="txt"><b id="sitTitulo"></b><span id="sitDetalhe"></span><span id="sitQuando"></span></div>
+    <div class="bts"><button class="b b-pq" type="button" id="btEditarFech" hidden>Editar</button><button class="b b-pq" type="button" id="btReabrir">Reabrir</button></div>
+  </div>
+
+  <div class="envio" id="edEnvio" hidden>
+    <a class="b b-ouro largo" id="edWhats" href="#" target="_blank" rel="noopener">Enviar no WhatsApp</a>
+    <button class="b" type="button" data-acao="copiar">Copiar link</button>
+    <a class="b" id="edVer" href="#" target="_blank" rel="noopener">Ver proposta</a>
+    <button class="b b-verde largo" type="button" id="edFechou">Fechou?</button>
+    <button class="texto-link largo" type="button" id="edContato"></button>
+  </div>
+
+  <form id="fEd" autocomplete="off" novalidate>
+    <div class="passo" data-so="proposta">
+      <h3><span class="n">1</span> Para quem é?</h3>
+      <label class="campo"><span>Nome do cliente</span><input type="text" id="fCliente" maxlength="120" placeholder="Ana &amp; João, Formatura Medicina…" autocapitalize="words" enterkeyhint="done"></label>
+      <div class="duas">
+        <label class="campo"><span>Data do evento</span><input type="date" id="fData"></label>
+        <label class="campo"><span>Horário</span><input type="time" id="fHora" step="300"></label>
+      </div>
+      <small class="aviso-data" id="fDataAviso" role="status" hidden></small>
+      <label class="campo"><span>Local</span><input type="text" id="fLocal" maxlength="200" placeholder="Salão, igreja ou cidade" enterkeyhint="done"></label>
+    </div>
+
+    <div class="passo" id="passoOpcoes">
+      <h3><span class="n" data-so="proposta">2</span> Quais opções oferecer?</h3>
+      <p class="adapta so-visitante" data-texto="adaptar">As opções, os valores e os entregáveis são um exemplo: na sua versão, vêm os seus.</p>
+      <p class="dica">A proposta mostra as opções nesta ordem. Use as setas para trocar a posição.</p>
+      <div id="fOpcoes"></div>
+      <p class="dica">“Sugerir esta” destaca a opção na proposta com o selo “Minha sugestão para vocês”. É opcional.</p>
+    </div>
+
+    <div class="passo" data-so="proposta">
+      <h3><span class="n">3</span> Quer deixar um recado? <small>(opcional)</small></h3>
+      <textarea id="fMensagem" maxlength="2000" rows="4" placeholder="Ex.: Ana e João, foi um prazer conhecer a história de vocês…" aria-label="Recado para o cliente"></textarea>
+    </div>
+
+    <details class="mais" id="maisOpcoes">
+      <summary><span>Mais opções <small>Textos das opções, adicionais, pagamento…</small></span></summary>
+      <div class="dentro">
+        <div id="fTextos" style="display:grid; gap:18px"></div>
+
+        <div class="grupo">
+          <b>Em todas as opções</b>
+          <label class="campo"><textarea id="fInclui" maxlength="600" rows="4" aria-label="Em todas as opções"></textarea><small>O que vale para qualquer opção. Um por linha.</small></label>
+        </div>
+
+        <div class="grupo">
+          <b>Adicionais</b>
+          <div id="fAdicionais" style="display:grid; gap:8px"></div>
+          <button class="b tracejado" type="button" id="btAddAdicional">+ Adicionar outro</button>
+          <p class="dica">O preço é opcional: sem preço, o adicional aparece só com o nome.</p>
+        </div>
+
+        <div class="grupo">
+          <b>Pagamento e validade</b>
+          <label class="campo"><span>Condições de pagamento</span><textarea id="fCondicoes" maxlength="1500" rows="4"></textarea><small>Uma por linha.</small></label>
+          <label class="campo" data-so="proposta"><span>Proposta válida até</span><input type="date" id="fValidade"></label>
+          <label class="campo" data-so="modelo"><span>Validade (dias depois de criar)</span><input type="number" id="mDias" min="1" max="365" inputmode="numeric"></label>
+          <label class="campo"><span>Observações</span><textarea id="fObs" maxlength="1500" rows="3"></textarea></label>
+        </div>
+
+        <div class="grupo">
+          <b>Na página da proposta</b>
+          <label class="campo"><span>Tipo de evento</span><input type="text" id="fTipo" maxlength="80" placeholder="Casamento, formatura, corporativo…" enterkeyhint="done"></label>
+          <div class="duas quebra">
+            <label class="campo"><span>Nome do 1º valor</span><input type="text" id="fRotA" maxlength="40" placeholder="Ex.: Evento" enterkeyhint="done"></label>
+            <label class="campo"><span>Nome do 2º valor</span><input type="text" id="fRotB" maxlength="60" placeholder="Ex.: Evento + ensaio" enterkeyhint="done"></label>
+          </div>
+          <label class="campo"><span>Nota do 2º valor <small>(opcional)</small></span><input type="text" id="fRotNota" maxlength="140" placeholder="Ex.: Inclui um ensaio antes do evento" enterkeyhint="done"><small>Como a página chama os dois valores de cada opção. Vale para a proposta inteira.</small></label>
+          <label class="liga-linha"><span>Mostrar os vídeos</span><input type="checkbox" class="chave" role="switch" id="sVideos"></label>
+          <label class="liga-linha"><span>Mostrar os depoimentos</span><input type="checkbox" class="chave" role="switch" id="sDepoimentos"></label>
+        </div>
+
+        <div class="grupo" data-so="existente">
+          <div class="duas">
+            <button class="b" type="button" id="edDuplicar">Duplicar</button>
+            <button class="b perigo" type="button" id="edExcluir">Excluir</button>
+          </div>
+        </div>
+      </div>
+    </details>
+  </form>
+
+  <div class="barra"><div class="in"><button class="b b-ouro b-cheio" type="button" id="btSalvar">Salvar e gerar link</button></div></div>
+</section>
+
+<!-- GUIA DE BOAS-VINDAS (modo visitante) -->
+<div class="folha-fundo" id="folhaGuia" hidden>
+  <div class="folha guia" role="dialog" aria-modal="true" aria-labelledby="guiaTit" tabindex="-1">
+    <div class="guia-corpo">
+      <p class="rotulo">Boas-vindas</p>
+      <h3 id="guiaTit">Como funciona o painel</h3>
+      <p>Um passeio rápido. Mexa à vontade: nada aqui é salvo nem publicado.</p>
+      <ol class="passos">
+        <li><span class="n" aria-hidden="true">1</span><div class="t"><b>Hoje e Agenda</b><span>Ao abrir, o dia de relance (eventos da semana, pagamentos, quem chamar) e o mês em números; na Agenda, o calendário do mês.</span></div></li>
+        <li><span class="n" aria-hidden="true">2</span><div class="t"><b>Contatos</b><span>Anote quem pediu preço e de onde veio; o painel lembra o dia de chamar de volta e mostra de onde vêm os clientes que fecham.</span></div></li>
+        <li><span class="n" aria-hidden="true">3</span><div class="t"><b>Propostas</b><span>Crie a proposta de um cliente em 1 minuto. O botão WhatsApp abre o seu WhatsApp com a mensagem e o link escritos: você só aperta enviar. E veja quando o cliente abriu.</span></div></li>
+        <li><span class="n" aria-hidden="true">4</span><div class="t"><b>Fechou?</b><span>Marque o que fechou (com adicionais, sinal e restante) e quem fechou vira cliente; o faturamento e o que falta receber se somam sozinhos.</span></div></li>
+        <li><span class="n" aria-hidden="true">5</span><div class="t"><b>Sua proposta padrão</b><span>Monte uma vez suas opções, valores e adicionais; toda proposta nova começa dela.</span></div></li>
+      </ol>
+      <p class="fecho">Tudo aqui é exemplo. Na sua versão, o painel e a página da proposta são feitos com a paleta do seu site, e todo o sistema é entregue personalizado para o seu negócio: as suas opções, valores, fotos, vídeos e depoimentos.</p>
+    </div>
+    <div class="guia-pe">
+      <button class="b b-ouro b-cheio" type="button" id="guiaComecar">Começar</button>
+      <a class="b b-cheio" id="guiaVerExemplo" href="proposta/?p=exemplo" target="_blank" rel="noopener">Ver uma proposta pronta</a>
+      <div class="pe centro"><a class="texto-link" id="guiaQuero" href="#" target="_blank" rel="noopener">Quero um painel assim</a></div>
+    </div>
+  </div>
+</div>
+
+<!-- PROPOSTA PRONTA -->
+<div class="folha-fundo" id="folhaPronta" hidden>
+  <div class="folha" role="dialog" aria-modal="true" aria-labelledby="prontaTit" tabindex="-1">
+    <h3 id="prontaTit">Proposta pronta</h3>
+    <p>Mande para o cliente: o botão abre o seu WhatsApp já com a mensagem e o link. Se preferir, copie o link.</p>
+    <code id="prontaLink"></code>
+    <p class="nota-visitante so-visitante" id="prontaAvisoVisitante">No modo visitante, este link só abre neste aparelho. Na sua versão, ele vai para o cliente pelo WhatsApp.</p>
+    <a class="b b-ouro b-cheio" id="prontaWhats" href="#" target="_blank" rel="noopener">Enviar no WhatsApp</a>
+    <button class="b b-cheio" type="button" data-acao="copiar">Copiar link</button>
+    <a class="b b-cheio" id="prontaVer" href="#" target="_blank" rel="noopener">Ver proposta</a>
+    <div class="pe centro"><button class="texto-link" type="button" id="prontaVoltar">Voltar para as propostas</button></div>
+  </div>
+</div>
+
+<!-- FECHOU? -->
+<div class="folha-fundo" id="folhaFechou" hidden>
+  <div class="folha" role="dialog" aria-modal="true" aria-labelledby="fxTit" tabindex="-1">
+    <div class="parte" id="fxParteFechou">
+      <h3 id="fxTit">Fechou?</h3>
+      <p class="quem" id="fxQuem"></p>
+      <p class="aviso-data" id="fxConflito" role="status" hidden></p>
+      <div class="campo"><span id="fxRotOpcao">Qual opção fechou?</span><div class="escolhas grade" id="fxOpcoes" role="group" aria-labelledby="fxRotOpcao"></div></div>
+      <div class="campo"><span id="fxRotPacote">Pacote</span><div class="escolhas" id="fxPacotes" role="group" aria-labelledby="fxRotPacote">
+        <button type="button" data-v="cerimonia" aria-pressed="false">Cerimônia</button>
+        <button type="button" data-v="cerimonia_recepcao" aria-pressed="false">Cerimônia + recepção</button>
+      </div></div>
+      <div class="duas quebra-p">
+        <label class="campo valor-fechado"><span>Valor fechado</span><div class="dinheiro" id="fxValorCaixa"><span>R$</span><input type="text" id="fxValor" inputmode="decimal" placeholder="0" enterkeyhint="done"></div></label>
+        <label class="campo"><span>Data do fechamento</span><input type="date" id="fxData"></label>
+      </div>
+      <div class="campo"><span>Adicionais <small>(opcional)</small></span>
+        <div class="motivos" id="fxAdicSug" hidden></div>
+        <div class="fx-adics" id="fxAdicionais"></div>
+        <button class="b tracejado" type="button" id="fxAddAdic">+ Adicionar adicional</button>
+      </div>
+      <p class="fx-total" id="fxTotal" role="status" hidden></p>
+      <div class="campo"><span>Pagamento <small>(quanto entra e quando)</small></span>
+        <div class="fx-pag">
+          <div class="pag-parte">
+            <div class="pag-cab"><b>Sinal</b><small id="fxSinalPct"></small></div>
+            <div class="duas quebra-p">
+              <label class="campo"><span>Valor do sinal</span><div class="dinheiro" id="fxSinalCaixa"><span>R$</span><input type="text" id="fxSinalValor" inputmode="decimal" placeholder="0" enterkeyhint="done"></div></label>
+              <label class="campo"><span>Vence em</span><input type="date" id="fxSinalVence"></label>
+            </div>
+            <label class="liga-linha"><span>Já recebi o sinal</span><input type="checkbox" class="chave" role="switch" id="fxSinalPago"></label>
+          </div>
+          <div class="pag-parte">
+            <div class="pag-cab"><b>Restante</b><span class="restante-v" id="fxRestanteValor">R$ 0</span></div>
+            <label class="campo"><span>Vence em</span><input type="date" id="fxRestanteVence"></label>
+            <label class="liga-linha"><span>Já recebi o restante</span><input type="checkbox" class="chave" role="switch" id="fxRestantePago"></label>
+          </div>
+        </div>
+      </div>
+      <label class="campo" id="fxObsCampo" hidden><span>O que ficou combinado? <small>(opcional)</small></span><input type="text" id="fxObs" maxlength="500" enterkeyhint="done"></label>
+      <div class="aviso" id="fxErro" role="alert" hidden></div>
+      <button class="b b-ouro b-cheio" type="button" id="fxSalvar">Salvar</button>
+      <div class="pe">
+        <button class="texto-link" type="button" id="fxNao">Não fechou</button>
+        <button class="texto-link" type="button" data-cancelar>Cancelar</button>
+      </div>
+    </div>
+    <div class="parte" id="fxParteNao" hidden>
+      <h3>Não fechou</h3>
+      <p class="quem" id="nfQuem"></p>
+      <div class="campo"><span>Quer anotar o motivo? <small>(opcional)</small></span>
+        <div class="motivos" id="nfMotivos"></div>
+        <input type="text" id="nfMotivo" maxlength="300" placeholder="Ou escreva aqui" aria-label="Motivo" enterkeyhint="done">
+      </div>
+      <div class="aviso" id="nfErro" role="alert" hidden></div>
+      <button class="b b-ouro b-cheio" type="button" id="nfSalvar">Marcar como “Não fechou”</button>
+      <div class="pe">
+        <button class="texto-link" type="button" id="nfVoltar">← Voltar</button>
+        <button class="texto-link" type="button" data-cancelar>Cancelar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- RECEBI -->
+<div class="folha-fundo" id="folhaRecebi" hidden>
+  <div class="folha" role="dialog" aria-modal="true" aria-labelledby="rcTit" tabindex="-1">
+    <div class="parte">
+      <h3 id="rcTit">Recebeu?</h3>
+      <p class="quem" id="rcQuem"></p>
+      <label class="campo"><span>Recebeu em</span><input type="date" id="rcData"></label>
+      <div class="aviso" id="rcErro" role="alert" hidden></div>
+      <button class="b b-ouro b-cheio" type="button" id="rcSalvar">Marcar como recebido</button>
+      <div class="pe centro"><button class="texto-link" type="button" data-cancelar>Cancelar</button></div>
+    </div>
+  </div>
+</div>
+
+<!-- CONTATO -->
+<div class="folha-fundo" id="folhaContato" hidden>
+  <div class="folha" role="dialog" aria-modal="true" aria-labelledby="ctTit" tabindex="-1">
+    <div class="parte">
+      <h3 id="ctTit">Novo contato</h3>
+      <label class="campo"><span>Nome</span><input type="text" id="ctNome" maxlength="120" placeholder="Ana &amp; João, Formatura Medicina…" autocapitalize="words" enterkeyhint="next"></label>
+      <label class="campo"><span>WhatsApp <small>(com DDD)</small></span><input type="tel" id="ctWhats" inputmode="tel" maxlength="20" placeholder="(11) 99999-0000" enterkeyhint="next"></label>
+      <div class="campo"><span id="ctRotOrigem">De onde veio</span><div class="escolhas" id="ctOrigens" role="group" aria-labelledby="ctRotOrigem"></div></div>
+      <label class="campo"><span>Data do evento <small>(se já souber)</small></span><input type="date" id="ctData"></label>
+      <div class="campo"><span id="ctRotLemb">Lembrar de chamar</span>
+        <div class="motivos" id="ctAtalhos" role="group" aria-labelledby="ctRotLemb"></div>
+        <div class="duas quebra-p">
+          <label class="campo"><span>Dia</span><input type="date" id="ctLembEm"></label>
+          <label class="campo"><span>O que lembrar</span><input type="text" id="ctLembTxt" maxlength="140" placeholder="Mandar a proposta" enterkeyhint="done"></label>
+        </div>
+      </div>
+      <label class="campo"><span>Anotações <small>(opcional)</small></span><textarea id="ctObs" maxlength="500" rows="3" placeholder="Ex.: festa ao ar livre, quer imagens de drone"></textarea></label>
+      <div class="aviso" id="ctErro" role="alert" hidden></div>
+      <button class="b b-ouro b-cheio" type="button" id="ctSalvar">Salvar contato</button>
+      <div class="ct-acoes" id="ctAcoes" hidden>
+        <a class="b" id="ctWhatsBt" href="#" target="_blank" rel="noopener">Chamar no WhatsApp</a>
+        <button class="b" type="button" id="ctProposta">Fazer proposta</button>
+      </div>
+      <div class="pe">
+        <button class="texto-link perigo" type="button" id="ctExcluir" hidden>Excluir contato</button>
+        <button class="texto-link" type="button" data-cancelar>Cancelar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MENSAGEM DO WHATSAPP (modo visitante: mostra a mensagem em vez de abrir a conversa de um número fictício) -->
+<div class="folha-fundo" id="folhaWhats" hidden>
+  <div class="folha" role="dialog" aria-modal="true" aria-labelledby="wzTit" tabindex="-1">
+    <h3 id="wzTit">Mensagem pronta</h3>
+    <p class="quem" id="wzPara"></p>
+    <div class="msg-whats" id="wzMsg"></div>
+    <p id="wzExplica"></p>
+    <a class="b b-ouro b-cheio" id="wzTestar" href="#" target="_blank" rel="noopener">Testar no meu WhatsApp</a>
+    <p class="nota-visitante">O teste abre o seu WhatsApp com a mensagem e sem destinatário: você escolhe para quem mandar (pode ser você mesmo).</p>
+    <div class="pe centro"><button class="texto-link" type="button" data-cancelar>Fechar</button></div>
+  </div>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(function () {
+  'use strict';
+  // ============================================================
+  // CONFIG — o que muda de um cliente para outro (para clonar a base para um cliente de verdade:
+  // DEMO: false, a API dele e a marca dele). Contrato completo em ESPEC.md §3.
+  // ============================================================
+  var CONFIG = {
+    MARCA: 'RK Performance',
+    DEMO: true,                       // demonstração pública: aceita "visitante" (tudo num simulador no navegador)
+    API_LOCAL: 'http://127.0.0.1:8792',
+    API_PUBLICA: 'https://rk-painel-demo.joao-vitor-kos.workers.dev',
+    CHAVE_SESSAO: 'rk_painel_sessao',          // { token, exp, papel }
+    CHAVE_SANDBOX: 'rk_demo_sandbox_v1',       // o "banco" do visitante (a página da proposta lê o mesmo)
+    CHAVE_GUIA: 'rk_demo_guia_visto',          // "1" depois que o guia de boas-vindas abriu
+    CHAVE_DICAS: 'rk_demo_dicas_fechadas',     // dicas que o visitante já fechou
+    SANDBOX_HORAS: 6,                          // depois disso o visitante recomeça dos exemplos
+    POR_DIA: 2,                                // até 2 casamentos no mesmo dia
+    SINAL_PCT: 10,                             // sinal padrão na assinatura (% do total)
+    RESTANTE_DIAS_ANTES: 5,                    // o restante vence tantos dias antes do evento
+    DIAS_SEM_RESPOSTA: 3,                      // abriu a proposta há tantos dias e não respondeu: hora de chamar
+    NOME_SAUDACAO: '',                         // "Bom dia, <nome>" na aba Hoje (vazio na demonstração)
+    ASSINATURA_WHATS: 'Aqui é do Aurora Studio.',   // fim da mensagem para um contato ainda sem proposta
+    ROTULO_PORTAL: 'Portal de eventos',        // como aparece a origem "portal" (site de anúncios do ramo do cliente)
+    WHATSAPP_RK: '5542999246208',
+    SITE_RK: 'https://rkperformance.com.br',
+    TEXTOS: {
+      adaptar: 'As opções, os valores e os entregáveis são um exemplo: na sua versão, vêm os seus.',
+      queroPainel: 'Oi, João! Conheci o painel de propostas da RK e quero um assim para o meu trabalho.'
+    }
+  };
+
+  var LOCAL = /^(localhost|127\.0\.0\.1)$/.test(location.hostname);
+  var API = LOCAL ? CONFIG.API_LOCAL : CONFIG.API_PUBLICA;
+  // o painel fica na raiz do site: funciona em painel.rkperformance.com.br/ e em joaovitorrk.github.io/rk-painel-demo/
+  var BASE = location.origin + location.pathname.replace(/index\.html$/, '');
+  if (!/\/$/.test(BASE)) BASE += '/';
+  var BASE_LINK = BASE + 'proposta/?p=';
+  var CHAVE = CONFIG.CHAVE_SESSAO;
+  var OPCOES = [{ k: 'simples', rot: 'Simples' }, { k: 'media', rot: 'Média' }, { k: 'completa', rot: 'Completa' }];
+  // Os dois valores de cada opção têm chaves internas fixas (cerimonia = pacote A, cerimonia_recepcao = pacote B)
+  // e nomes que vêm dos dados da proposta (dados.rotulos). Proposta antiga sem rótulos lê os nomes de antes.
+  var ROTULOS_PADRAO = { pacote_a: 'Cerimônia', pacote_b: 'Cerimônia + recepção', nota_b: '' };
+  function limparRotulos(r) {
+    r = r && typeof r === 'object' ? r : {};
+    var t = function (v, max) { return (typeof v === 'string' ? v : '').slice(0, max).trim(); };
+    return { pacote_a: t(r.pacote_a, 40) || ROTULOS_PADRAO.pacote_a, pacote_b: t(r.pacote_b, 60) || ROTULOS_PADRAO.pacote_b, nota_b: t(r.nota_b, 140) };
+  }
+  function rotuloPacote(d, pacote) {
+    var r = limparRotulos(d && d.rotulos);
+    return pacote === 'cerimonia' ? r.pacote_a : pacote === 'cerimonia_recepcao' ? r.pacote_b : '';
+  }
+  function MODOS_DE(r) {
+    return [
+      { k: 'junto', rot: 'Junto', txt: 'A proposta mostra um valor só: ' + r.pacote_b + '.' },
+      { k: 'separado', rot: 'Separado', txt: 'A proposta mostra os dois valores: ' + r.pacote_a + ' e ' + r.pacote_b + '.' },
+      { k: 'cerimonia', rot: 'Só ' + r.pacote_a, txt: 'A proposta mostra só o valor de ' + r.pacote_a + '.' }
+    ];
+  }
+  // como cada opção mostra o valor na proposta
+  var MODOS = MODOS_DE(ROTULOS_PADRAO);   // só as chaves; os textos são refeitos pelos rótulos da proposta (aplicarRotulos)
+  var MODOS_FIXOS = [
+    { k: 'junto' },
+    { k: 'separado' },
+    { k: 'cerimonia' }
+  ];
+  var MOTIVOS = ['Fechou com outro fornecedor', 'Achou o valor alto', 'Mudou os planos', 'Não respondeu mais'];
+  var $ = function (id) { return document.getElementById(id); };
+
+  var contatos = [], vincularContato = null, contatoEd = null, ctOrigem = '', ctPropostaId = null;   // contatos
+  var propostas = [], filtro = 'abertas', pedido = 0, ultimaCarga = 0, carregada = false;   // lista
+  var aba = 'hoje', mesVisto = null, diaSel = '', dmMes = null;                                       // abas e agenda
+  var SINAL_PCT = CONFIG.SINAL_PCT, RESTANTE_DIAS_ANTES = CONFIG.RESTANTE_DIAS_ANTES, DIAS_SEM_RESPOSTA = CONFIG.DIAS_SEM_RESPOSTA;
+  var POR_DIA = CONFIG.POR_DIA;                                                           // casamentos que cabem no mesmo dia
+  var cli = { base: 'evento', periodo: 'tudo', de: '', ate: '' };                          // filtros da aba Clientes
+  var editando = null, modelo = null, sujo = false, sugestao = '';                       // editor
+  var fechando = null, fx = { opcao: '', pacote: '', auto: '' };                         // folha "Fechou?"
+
+  // ---------- sessão ----------
+  var sessao = null;
+  try { sessao = JSON.parse(localStorage.getItem(CHAVE) || 'null'); } catch (e) {}
+  function logado() { return !!(sessao && sessao.token && sessao.exp > Date.now() / 1000); }
+  function ehVisitante() { return !!(sessao && sessao.papel === 'visitante'); }
+  function sair(msg) {
+    sessao = null; try { localStorage.removeItem(CHAVE); } catch (e) {}
+    Sandbox.apagar();                      // o que o visitante mexeu some junto com a sessão
+    dicasFechadas = []; try { localStorage.removeItem(CONFIG.CHAVE_DICAS); } catch (e) {}
+    sujo = false; propostas = []; carregada = false; modelo = null; editando = null; aba = 'hoje'; mesVisto = null; diaSel = ''; dmMes = null; cli = { base: 'evento', periodo: 'tudo', de: '', ate: '' };
+    contatos = []; vincularContato = null; contatoEd = null;
+    ['rFechadas', 'rMedio', 'rTotal', 'mCasamentos', 'mLivres', 'mAguardando', 'fReceber', 'fAtrasado', 'fRecebidoMes', 'hjEventos', 'hjReceber', 'hjChamar', 'ctChamar', 'ctSemProposta', 'ctFecharam'].forEach(function (id) { $(id).textContent = '–'; });
+    fecharFolhas(); semToast(); toastDepois = '';
+    pintarPapel();
+    mostrar('vLogin');
+    $('loginErro').textContent = msg || ''; $('loginErro').hidden = !msg;
+  }
+  // Visitante: nada que grave sai daqui para a rede. Toda chamada passa pelo simulador (Sandbox), que só
+  // lê de verdade na primeira vez (GET das propostas e da proposta padrão) e depois responde sozinho.
+  function api(metodo, caminho, corpo) {
+    if (caminho !== '/login' && ehVisitante()) {
+      if (!logado()) { sair('Sua sessão terminou. Entre de novo.'); return Promise.reject(new Error('401')); }
+      return Sandbox.chamar(metodo, caminho, corpo);
+    }
+    return rede(metodo, caminho, corpo);
+  }
+  function rede(metodo, caminho, corpo) {
+    if (ehVisitante() && caminho !== '/login' && metodo !== 'GET') return Promise.reject(new Error('Modo visitante: nada é salvo nem publicado.'));   // trava extra
+    var h = { 'content-type': 'application/json' };
+    if (logado()) h.authorization = 'Bearer ' + sessao.token;
+    return fetch(API + caminho, { method: metodo, headers: h, body: corpo ? JSON.stringify(corpo) : undefined }).then(function (r) {
+      return r.json().catch(function () { return {}; }).then(function (j) {
+        if (r.status === 401 && caminho !== '/login') { sair(j.erro || 'Sua sessão terminou. Entre de novo.'); throw new Error('401'); }
+        if (!r.ok) throw new Error(j.erro && j.erro !== 'Erro interno' ? j.erro : 'Não deu certo agora. Tente de novo daqui a pouco.');
+        return j;
+      });
+    }, function () { throw new Error('Sem conexão. Confira a internet e tente de novo.'); });
+  }
+
+  // ---------- modo visitante: a API simulada no navegador ----------
+  // Guarda { v, criado_em, propostas, modelo, contatos, removidos } em localStorage[CONFIG.CHAVE_SANDBOX].
+  // Mesmas respostas, regras e mensagens de erro da API (limpar, validarPublicacao, etapa, duplicar,
+  // excluir, link, contatos). A página da proposta lê o mesmo lugar para abrir, neste aparelho, o que o visitante fez.
+  var Sandbox = (function () {
+    var mem = null, hidratando = null, geracao = 0;
+    var VALIDADE_MS = CONFIG.SANDBOX_HORAS * 3600 * 1000;
+    var OPS = ['simples', 'media', 'completa'], PACS = ['cerimonia', 'cerimonia_recepcao', 'outro'];
+    var MAX_CENTAVOS = 9999999999;   // teto de qualquer preço: R$ 99.999.999,99 (igual à API)
+
+    function copia(x) { return x == null ? x : JSON.parse(JSON.stringify(x)); }
+    function valido(s) {
+      return !!(s && s.v === 1 && Array.isArray(s.propostas) && s.modelo && typeof s.modelo === 'object' && Array.isArray(s.contatos) &&
+        Date.now() - Date.parse(s.criado_em) < VALIDADE_MS);
+    }
+    function ler() {
+      if (valido(mem)) return mem;
+      var s = null;
+      try { s = JSON.parse(localStorage.getItem(CONFIG.CHAVE_SANDBOX) || 'null'); } catch (e) {}
+      mem = valido(s) ? s : null;
+      if (mem && !Array.isArray(mem.removidos)) mem.removidos = [];
+      return mem;
+    }
+    function gravar() { try { localStorage.setItem(CONFIG.CHAVE_SANDBOX, JSON.stringify(mem)); } catch (e) { /* sem espaço ou janela anônima: segue só na memória */ } }
+    function apagar() { geracao++; mem = null; hidratando = null; try { localStorage.removeItem(CONFIG.CHAVE_SANDBOX); } catch (e) {} }
+    // primeira chamada (ou sandbox vencido): busca os exemplos de verdade, só com GET
+    function hidratar() {
+      var s = ler();
+      if (s) return Promise.resolve(s);
+      if (hidratando) return hidratando;
+      var g = geracao, venceu = false;
+      try { venceu = !!localStorage.getItem(CONFIG.CHAVE_SANDBOX); } catch (e) {}   // havia um, mas passou do prazo
+      hidratando = Promise.all([rede('GET', '/admin/propostas'), rede('GET', '/admin/modelo'), rede('GET', '/admin/contatos')]).then(function (r) {
+        if (g !== geracao) return hidratar();   // "Recomeçar" no meio da carga: vale a carga nova
+        mem = { v: 1, criado_em: new Date().toISOString(), propostas: Array.isArray(r[0]) ? r[0] : [], modelo: r[1] && typeof r[1] === 'object' ? r[1] : {},
+          contatos: Array.isArray(r[2]) ? r[2] : [], removidos: [] };
+        gravar(); hidratando = null;
+        if (venceu) toast('Passaram algumas horas: os exemplos voltaram ao início');
+        return mem;
+      }, function (e) { if (g === geracao) hidratando = null; throw e; });
+      return hidratando;
+    }
+
+    // ----- as mesmas regras da API (src/index.js) -----
+    function erro(msg) { return new Error(msg); }
+    var OBJ = function (v) { return v && typeof v === 'object' && !Array.isArray(v) ? v : {}; };
+    var TXT = function (v, max) { return (typeof v === 'string' ? v : '').slice(0, max).replace(/[\uD800-\uDBFF]$/, ''); };
+    var NUM = function (v) {
+      if (typeof v !== 'number' || !isFinite(v) || v < 0) return null;
+      var c = Math.round(v * 100);
+      return isFinite(c) && c <= MAX_CENTAVOS ? c / 100 : null;
+    };
+    var CENT = function (v) { var c = Math.round((Number(v) || 0) * 100); return isFinite(c) ? c / 100 : 0; };
+    function dataExiste(iso) { var d = new Date(iso + 'T12:00:00Z'); return !isNaN(d.getTime()) && d.toISOString().slice(0, 10) === iso; }
+    var DATA = function (v) { return typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v) && dataExiste(v) ? v : ''; };
+    var HORA = function (v) { return typeof v === 'string' && /^([01]\d|2[0-3]):[0-5]\d$/.test(v) ? v : ''; };
+    function hojeBR() { return new Date(Date.now() - 3 * 3600 * 1000).toISOString().slice(0, 10); }   // Brasília (UTC−3)
+    function somarDias(iso, dias) { var d = new Date(iso + 'T12:00:00Z'); d.setUTCDate(d.getUTCDate() + dias); return d.toISOString().slice(0, 10); }
+    function agora() { return new Date().toISOString(); }
+
+    function limpar(d) {
+      if (!d || typeof d !== 'object' || Array.isArray(d)) throw erro('Dados inválidos.');
+      var secoes = OBJ(d.secoes), opcoes = {};
+      var verRec = d.mostrar_recepcao !== false, verCer = d.mostrar_cerimonia !== false || !verRec;
+      OPS.forEach(function (k) {
+        var o = OBJ(OBJ(d.opcoes)[k]);
+        opcoes[k] = {
+          on: o.on === true, nome: TXT(o.nome, 60), clima: TXT(o.clima, 120), itens: TXT(o.itens, 600),
+          cerimonia: NUM(o.cerimonia), cerimonia_recepcao: NUM(o.cerimonia_recepcao),
+          ver_cerimonia: typeof o.ver_cerimonia === 'boolean' ? o.ver_cerimonia : verCer,
+          ver_recepcao: typeof o.ver_recepcao === 'boolean' ? o.ver_recepcao : verRec
+        };
+      });
+      return {
+        cliente: TXT(typeof d.cliente === 'string' ? d.cliente.trim() : '', 120).trim(),
+        tipo: TXT(d.tipo, 80), rotulos: limparRotulos(d.rotulos), data: DATA(d.data), hora: HORA(d.hora), local: TXT(d.local, 200), mensagem: TXT(d.mensagem, 2000),
+        opcoes: opcoes,
+        ordem: limparOrdem(d.ordem, opcoes),
+        sugestao: OPS.indexOf(d.sugestao) >= 0 && opcoes[d.sugestao].on ? d.sugestao : '',
+        inclui: TXT(d.inclui, 600),
+        adicionais: (Array.isArray(d.adicionais) ? d.adicionais : []).map(function (i) {
+          return { nome: TXT(i && i.nome, 120), descricao: TXT(i && i.descricao, 300), valor: NUM(i && i.valor) };
+        }).filter(function (i) { return i.nome || i.descricao || i.valor !== null; }).slice(0, 20),
+        condicoes: TXT(d.condicoes, 1500), validade: DATA(d.validade), observacoes: TXT(d.observacoes, 1500),
+        secoes: { videos: secoes.videos !== false, depoimentos: secoes.depoimentos !== false }
+      };
+    }
+    function limparOrdem(v, opcoes) {
+      if (Array.isArray(v)) {
+        var ordem = [];
+        v.forEach(function (k) { if (OPS.indexOf(k) >= 0 && ordem.indexOf(k) < 0) ordem.push(k); });
+        OPS.forEach(function (k) { if (ordem.indexOf(k) < 0) ordem.push(k); });
+        return ordem;
+      }
+      if (v === 'cara') {
+        var maior = function (k) {
+          var o = opcoes[k], vs = [];
+          if (o.ver_cerimonia && o.cerimonia > 0) vs.push(o.cerimonia);
+          if (o.ver_recepcao && o.cerimonia_recepcao > 0) vs.push(o.cerimonia_recepcao);
+          return vs.length ? Math.max.apply(null, vs) : -1;
+        };
+        return OPS.slice().sort(function (a, b) { return (maior(b) - maior(a)) || (OPS.indexOf(b) - OPS.indexOf(a)); });
+      }
+      return OPS.slice();
+    }
+    function limparModelo(d) {
+      var dados = limpar(d);
+      ['cliente', 'data', 'hora', 'local', 'mensagem', 'validade'].forEach(function (k) { delete dados[k]; });
+      dados.validade_dias = Math.min(365, Math.max(1, Math.round(Number(d.validade_dias) || 30)));
+      return dados;
+    }
+    function validarPublicacao(dados) {
+      if (!dados.cliente) throw erro('Coloque o nome do cliente.');
+      var comValor = function (o) { return o.on && ((o.ver_cerimonia && o.cerimonia > 0) || (o.ver_recepcao && o.cerimonia_recepcao > 0)); };
+      if (!OPS.some(function (k) { return comValor(dados.opcoes[k]); })) throw erro('Marque pelo menos uma opção com valor.');
+    }
+    function aleatorio(n) { var b = new Uint8Array(n); (window.crypto || window.msCrypto).getRandomValues(b); return b; }
+    function uuid() {
+      if (window.crypto && typeof crypto.randomUUID === 'function') return crypto.randomUUID();
+      var b = aleatorio(16); b[6] = (b[6] & 15) | 64; b[8] = (b[8] & 63) | 128;
+      var h = Array.prototype.map.call(b, function (x) { return (x + 256).toString(16).slice(1); }).join('');
+      return h.slice(0, 8) + '-' + h.slice(8, 12) + '-' + h.slice(12, 16) + '-' + h.slice(16, 20) + '-' + h.slice(20);
+    }
+    // link = nome em minúsculas, sem acento, + 4 letras aleatórias (nunca um link já usado ou excluído)
+    function gerarSlug(s, cliente, menosId) {
+      var base = (cliente || 'proposta').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
+        .replace(/&/g, ' e ').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40).replace(/-+$/, '') || 'proposta';
+      for (var i = 0; i < 20; i++) {
+        var suf = Array.prototype.map.call(aleatorio(4), function (b) { return 'abcdefghjkmnpqrstuvwxyz23456789'[b % 31]; }).join('');
+        var slug = base + '-' + suf;
+        var usado = s.removidos.indexOf(slug) >= 0 || s.propostas.some(function (p) { return p.slug === slug && p.id !== menosId; });
+        if (!usado) return slug;
+      }
+      throw erro('Não consegui gerar um link único. Tente de novo.');
+    }
+    function buscar(s, id) {
+      for (var i = 0; i < s.propostas.length; i++) if (s.propostas[i].id === id) return s.propostas[i];
+      throw erro('Proposta não encontrada.');
+    }
+    function inserir(s, dados, status) {
+      var t = agora(), p = {
+        id: uuid(), slug: gerarSlug(s, dados.cliente), status: status, etapa: 'aberta', dados: dados,
+        fechamento: null, valor_fechado: null, fechado_em: null, criado_em: t, atualizado_em: t,
+        views: 0, primeira_vista: null, ultima_vista: null, publicada_alguma_vez: status === 'publicada'
+      };
+      s.propostas.unshift(p);
+      return p;
+    }
+    // sem dados: rascunho a partir da proposta padrão; publicada: mesma validação da API
+    function criar(s, corpo) {
+      corpo = OBJ(corpo);
+      var modeloP = limparModelo(s.modelo);
+      var dados = limpar(corpo.dados == null ? modeloP : corpo.dados);
+      if (!dados.validade) dados.validade = somarDias(hojeBR(), modeloP.validade_dias);
+      var status = corpo.status === 'publicada' ? 'publicada' : 'rascunho';
+      if (status === 'publicada') validarPublicacao(dados);
+      return inserir(s, dados, status);
+    }
+    // mexe só em dados, status e link (a etapa tem rota própria)
+    function atualizar(s, id, corpo) {
+      var atual = buscar(s, id); corpo = OBJ(corpo);
+      var dados = limpar(corpo.dados == null ? atual.dados : corpo.dados);
+      var status = ['rascunho', 'publicada'].indexOf(corpo.status) >= 0 ? corpo.status : atual.status;
+      if (status === 'publicada') validarPublicacao(dados);
+      // o link acompanha o nome só enquanto ninguém pode tê-lo recebido
+      var linkLivre = atual.status === 'rascunho' && !atual.views && !atual.publicada_alguma_vez;
+      if (linkLivre && dados.cliente !== atual.dados.cliente) atual.slug = gerarSlug(s, dados.cliente, id);
+      atual.publicada_alguma_vez = !!atual.publicada_alguma_vez || status === 'publicada';
+      atual.status = status; atual.dados = dados; atual.atualizado_em = agora();
+      return atual;
+    }
+    function excluir(s, id) {
+      var i = -1;
+      s.propostas.forEach(function (p, j) { if (p.id === id) i = j; });
+      if (i >= 0 && s.propostas[i].etapa === 'fechada') throw erro('Essa proposta está fechada. Reabra antes de excluir.');
+      if (i >= 0) {
+        var slug = s.propostas[i].slug;
+        s.propostas.splice(i, 1);
+        if (s.removidos.indexOf(slug) < 0) s.removidos.push(slug);   // a página passa a dizer "indisponível"
+        s.contatos.forEach(function (c) { if (c.proposta_id === id) c.proposta_id = null; });   // o contato fica, sem o vínculo
+      }
+      return { ok: true };
+    }
+    // ----- contatos: as mesmas regras da API (limparContato, salvarContato, excluirContato) -----
+    var ORIGENS_CONTATO = ['instagram', 'portal', 'indicacao', 'google', 'whatsapp', 'outro'];
+    function limparWhatsapp(v) {
+      var d = (typeof v === 'string' ? v : '').replace(/\D/g, '');
+      if ((d.length === 12 || d.length === 13) && d.indexOf('55') === 0) d = d.slice(2);
+      if (!d) return '';
+      if (d.length !== 10 && d.length !== 11) throw erro('WhatsApp inválido: coloque com DDD, só os números.');
+      return d;
+    }
+    function limparContato(s, d) {
+      if (!d || typeof d !== 'object' || Array.isArray(d)) throw erro('Dados inválidos.');
+      var nome = TXT(typeof d.nome === 'string' ? d.nome.trim() : '', 120).trim();
+      if (!nome) throw erro('Coloque o nome.');
+      var pid = typeof d.proposta_id === 'string' && /^[a-f0-9-]{36}$/.test(d.proposta_id) ? d.proposta_id : null;
+      if (pid && !s.propostas.some(function (p) { return p.id === pid; })) pid = null;
+      return {
+        nome: nome, whatsapp: limparWhatsapp(d.whatsapp), origem: ORIGENS_CONTATO.indexOf(d.origem) >= 0 ? d.origem : '',
+        data_evento: DATA(d.data_evento) || null, obs: TXT(d.obs, 500), lembrete_em: DATA(d.lembrete_em) || null,
+        lembrete_txt: TXT(d.lembrete_txt, 140), proposta_id: pid
+      };
+    }
+    function salvarContato(s, id, corpo) {
+      var c = limparContato(s, corpo), t = agora();
+      if (!id) {
+        var novo = { id: uuid(), nome: c.nome, whatsapp: c.whatsapp, origem: c.origem, data_evento: c.data_evento, obs: c.obs,
+          lembrete_em: c.lembrete_em, lembrete_txt: c.lembrete_txt, proposta_id: c.proposta_id, criado_em: t, atualizado_em: t };
+        s.contatos.unshift(novo);
+        return novo;
+      }
+      var atual = s.contatos.filter(function (x) { return x.id === id; })[0];
+      if (!atual) throw erro('Contato não encontrado.');
+      Object.keys(c).forEach(function (k) { atual[k] = c[k]; });
+      atual.atualizado_em = t;
+      return atual;
+    }
+    function excluirContato(s, id) {
+      s.contatos = s.contatos.filter(function (x) { return x.id !== id; });
+      return { ok: true };
+    }
+    // a cópia nasce como proposta nova: rascunho, em aberto, sem fechamento e com validade nova
+    function duplicar(s, id) {
+      var orig = buscar(s, id), modeloP = limparModelo(s.modelo);
+      var d = copia(orig.dados);
+      d.cliente = orig.dados.cliente ? TXT(orig.dados.cliente, 112) + ' (cópia)' : '';
+      var dados = limpar(d);
+      dados.validade = somarDias(hojeBR(), modeloP.validade_dias);
+      return inserir(s, dados, 'rascunho');
+    }
+    // fechada {fechamento:{opcao, pacote, valor, data, obs, adicionais, pagamentos}} · perdida {motivo} · aberta
+    function mudarEtapa(s, id, corpo) {
+      var p = buscar(s, id); corpo = OBJ(corpo);
+      var fechamento = null, valor = null, em = null;
+      if (corpo.etapa === 'fechada') {
+        var f = OBJ(corpo.fechamento), base = NUM(f.valor);
+        if (!(base > 0)) throw erro('Coloque o valor fechado.');
+        var adicionais = (Array.isArray(f.adicionais) ? f.adicionais : []).map(function (a) {
+          return { nome: TXT(a && typeof a.nome === 'string' ? a.nome.trim() : '', 120).trim(), valor: NUM(a && a.valor) };
+        }).filter(function (a) { return a.nome || a.valor !== null; }).slice(0, 10);
+        if (adicionais.some(function (a) { return !a.nome; })) throw erro('Coloque o nome do adicional.');
+        valor = CENT(base + adicionais.reduce(function (t, a) { return t + (a.valor || 0); }, 0));
+        em = DATA(f.data) || hojeBR();
+        fechamento = {
+          opcao: OPS.concat(['outro']).indexOf(f.opcao) >= 0 ? f.opcao : 'outro',
+          pacote: PACS.indexOf(f.pacote) >= 0 ? f.pacote : 'outro',
+          valor: base, data: em, obs: TXT(f.obs, 500)
+        };
+        if (adicionais.length) fechamento.adicionais = adicionais;
+        var pagamentos = (Array.isArray(f.pagamentos) ? f.pagamentos : []).map(function (x) {
+          return { tipo: ['sinal', 'restante', 'parcela'].indexOf(x && x.tipo) >= 0 ? x.tipo : 'parcela', valor: NUM(x && x.valor), vence_em: DATA(x && x.vence_em), pago_em: DATA(x && x.pago_em) };
+        }).filter(function (x) { return x.valor > 0; }).slice(0, 24);
+        if (pagamentos.length) fechamento.pagamentos = pagamentos;
+      } else if (corpo.etapa === 'perdida') {
+        em = hojeBR();
+        fechamento = { motivo: TXT(corpo.motivo, 300) };
+      } else if (corpo.etapa !== 'aberta') {
+        throw erro('Etapa inválida.');
+      }
+      p.etapa = corpo.etapa; p.fechamento = fechamento; p.valor_fechado = valor; p.fechado_em = em; p.atualizado_em = agora();
+      return p;
+    }
+    function resumo(s) {
+      var mes = hojeBR().slice(0, 7), r = { abertas: 0, fechadas: 0, perdidas: 0, total: 0, mesN: 0, mesT: 0 }, anos = {};
+      s.propostas.forEach(function (p) {
+        if (p.etapa === 'fechada') {
+          var v = Number(p.valor_fechado) || 0, ano = String((p.dados && p.dados.data) || '').slice(0, 4);
+          r.fechadas++; r.total += v;
+          if (String(p.fechado_em || '').slice(0, 7) === mes) { r.mesN++; r.mesT += v; }
+          anos[ano] = anos[ano] || { ano: ano, eventos: 0, total: 0 }; anos[ano].eventos++; anos[ano].total += v;
+        } else if (p.etapa === 'perdida') r.perdidas++;
+        else r.abertas++;
+      });
+      return {
+        abertas: r.abertas, fechadas: r.fechadas, perdidas: r.perdidas, total_fechado: CENT(r.total),
+        fechado_mes: { mes: mes, propostas: r.mesN, total: CENT(r.mesT) },
+        por_ano_evento: Object.keys(anos).map(function (k) { return { ano: k, eventos: anos[k].eventos, total: CENT(anos[k].total) }; })
+          .sort(function (a, b) { return (a.ano === '') - (b.ano === '') || (a.ano < b.ano ? -1 : 1); })
+      };
+    }
+    function maisRecente(a, b) { return String(b.atualizado_em || '').localeCompare(String(a.atualizado_em || '')); }
+
+    function responder(s, metodo, caminho, corpo) {
+      var c = String(caminho || '').split('?')[0].replace(/\/+$/, ''), r;
+      if (metodo === 'GET' && c === '/admin/propostas') return s.propostas.slice().sort(maisRecente);
+      if (metodo === 'POST' && c === '/admin/propostas') return criar(s, corpo);
+      if ((r = c.match(/^\/admin\/propostas\/([a-f0-9-]{36})$/))) {
+        if (metodo === 'GET') return buscar(s, r[1]);
+        if (metodo === 'PUT') return atualizar(s, r[1], corpo);
+        if (metodo === 'DELETE') return excluir(s, r[1]);
+      }
+      if (metodo === 'POST' && (r = c.match(/^\/admin\/propostas\/([a-f0-9-]{36})\/duplicar$/))) return duplicar(s, r[1]);
+      if (metodo === 'PUT' && (r = c.match(/^\/admin\/propostas\/([a-f0-9-]{36})\/etapa$/))) return mudarEtapa(s, r[1], corpo);
+      if (metodo === 'GET' && (r = c.match(/^\/admin\/p\/([a-z0-9-]{3,80})$/))) {
+        var achou = s.propostas.filter(function (p) { return p.slug === r[1]; })[0];
+        if (!achou) throw erro('Proposta não encontrada.');
+        return achou;
+      }
+      if (c === '/admin/modelo') {
+        if (metodo === 'GET') return limparModelo(s.modelo);
+        if (metodo === 'PUT') { s.modelo = limparModelo(OBJ(corpo).dados); return s.modelo; }
+      }
+      if (metodo === 'GET' && c === '/admin/resumo') return resumo(s);
+      if (c === '/admin/contatos') {
+        if (metodo === 'GET') return s.contatos.slice().sort(function (a, b) { return String(b.criado_em).localeCompare(String(a.criado_em)); });
+        if (metodo === 'POST') return salvarContato(s, null, corpo);
+      }
+      if ((r = c.match(/^\/admin\/contatos\/([a-f0-9-]{36})$/))) {
+        if (metodo === 'PUT') return salvarContato(s, r[1], corpo);
+        if (metodo === 'DELETE') return excluirContato(s, r[1]);
+      }
+      throw erro('Não deu certo agora. Tente de novo daqui a pouco.');   // rota que a API não tem
+    }
+    function chamar(metodo, caminho, corpo) {
+      metodo = String(metodo || 'GET').toUpperCase();
+      return hidratar().then(function (s) {
+        // um respiro de rede, para o "Salvando…" aparecer como na versão de verdade
+        return new Promise(function (ok) { setTimeout(ok, 120); }).then(function () {
+          if (s !== mem) throw erro('Os exemplos recomeçaram. Tente de novo.');
+          var res = responder(s, metodo, caminho, corpo === undefined ? undefined : copia(corpo));
+          if (metodo !== 'GET') gravar();
+          return copia(res);
+        });
+      });
+    }
+    return { chamar: chamar, apagar: apagar };
+  })();
+
+  // ---------- utilidades ----------
+  function numero(v) { var i = Math.round(v * 100) % 100 === 0; return new Intl.NumberFormat('pt-BR', { minimumFractionDigits: i ? 0 : 2, maximumFractionDigits: 2 }).format(v); }
+  function dinheiro(v) { return 'R$ ' + numero(v); }
+  // aceita "2500", "2.500", "2500,50" e "2.500,50" (vírgula ou ponto como separador)
+  function parseValor(s) {
+    s = String(s == null ? '' : s).replace(/[^\d.,]/g, '');
+    if (!s) return null;
+    var ultimo = Math.max(s.lastIndexOf(','), s.lastIndexOf('.')), n;
+    if (s[ultimo] === '.' && s.indexOf(',') < 0 && /^\d{1,3}(\.\d{3})+$/.test(s)) n = Number(s.replace(/\./g, ''));
+    else if (ultimo >= 0 && s.length - ultimo - 1 <= 2) n = Number(s.slice(0, ultimo).replace(/[.,]/g, '') + '.' + s.slice(ultimo + 1));
+    else n = Number(s.replace(/[.,]/g, ''));
+    return isFinite(n) ? Math.round(n * 100) / 100 : null;
+  }
+  function temValor(v) { return typeof v === 'number' && v > 0; }
+  function horaTxt(h) { var p = String(h || '').split(':'); return p.length === 2 ? Number(p[0]) + 'h' + (p[1] === '00' ? '' : p[1]) : ''; }
+  function dataCurta(iso) { if (!iso) return ''; var p = String(iso).slice(0, 10).split('-'); return p.length === 3 ? p[2] + '/' + p[1] + '/' + p[0] : ''; }
+  function isoLocal(d) { return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10); }
+  function hojeMais(dias) { var d = new Date(); d.setDate(d.getDate() + dias); return isoLocal(d); }
+  function quando(iso) {
+    var d = new Date(iso), hoje = new Date(), ontem = new Date(Date.now() - 864e5);
+    if (isNaN(d.getTime())) return '';
+    var h = d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    if (d.toDateString() === hoje.toDateString()) return 'hoje ' + h;
+    if (d.toDateString() === ontem.toDateString()) return 'ontem ' + h;
+    return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }) + ' ' + h;
+  }
+  function el(tag, cls, texto) { var e = document.createElement(tag); if (cls) e.className = cls; if (texto != null) e.textContent = texto; return e; }
+  function botao(cls, texto) { var b = el('button', cls, texto); b.type = 'button'; return b; }
+  function limparNo(no) { while (no.firstChild) no.removeChild(no.firstChild); }
+  function linkDe(p) { return BASE_LINK + encodeURIComponent(p.slug); }
+  // aviso curto: some sozinho em 2,5 s, ao trocar de tela e quando o campo apontado é corrigido
+  var toastT, toastDepois = '';
+  function toast(msg) { var t = $('toast'); t.textContent = msg; t.classList.add('on'); clearTimeout(toastT); toastT = setTimeout(function () { t.classList.remove('on'); }, 2500); }
+  function semToast() { clearTimeout(toastT); $('toast').classList.remove('on'); }
+  function toastNaProxima(msg) { toastDepois = msg; }   // só aparece quando a tela seguinte abrir (ex.: "Proposta padrão salva" já na lista)
+  function falhou(e) { if (e && e.message !== '401') toast(e.message || 'Algo deu errado.'); }
+  function corrigir(no) { if (no.classList.contains('falta')) { no.classList.remove('falta'); semToast(); } }   // você mexeu no campo que faltava
+  function focar(no) {   // foco no campo que falta, no meio da tela (longe do aviso e da barra fixa)
+    try { no.focus({ preventScroll: true }); } catch (e) { no.focus(); }
+    if (no.scrollIntoView) no.scrollIntoView({ block: 'center' });
+  }
+  function mostrar(id) {
+    ['vLogin', 'vLista', 'vEditor'].forEach(function (v) { $(v).hidden = v !== id; });
+    document.body.classList.toggle('tem-barra', id === 'vEditor');
+    window.scrollTo(0, 0);
+    semToast();
+    if (toastDepois) { toast(toastDepois); toastDepois = ''; }
+  }
+  function ocupado(bt, txt) { var antes = bt.textContent; bt.disabled = true; if (txt) bt.textContent = txt; return function () { bt.disabled = false; bt.textContent = antes; }; }
+
+  // o que cada proposta "é" hoje
+  function etapaDe(p) { return p.etapa === 'fechada' || p.etapa === 'perdida' ? p.etapa : 'aberta'; }
+  function nomeOpcao(d, k) {
+    if (k === 'outro') return 'Outro';
+    var o = d && d.opcoes && d.opcoes[k], r = OPCOES.filter(function (x) { return x.k === k; })[0];
+    return (o && o.nome) || (r ? r.rot : '');
+  }
+  function valorFechado(p) { return temValor(p.valor_fechado) ? p.valor_fechado : (p.fechamento && temValor(p.fechamento.valor) ? p.fechamento.valor : 0); }
+  function rotulosFechamento(p, comValor) {
+    var f = p.fechamento || {}, ad = Array.isArray(f.adicionais) ? f.adicionais : [];
+    var extras = ad.map(function (a) { return a.nome + (comValor && temValor(a.valor) ? ' (' + dinheiro(a.valor) + ')' : ''); });
+    return [nomeOpcao(p.dados, f.opcao), rotuloPacote(p.dados, f.pacote)].filter(Boolean).concat(extras.length ? ['+ ' + extras.join(', ')] : []);
+  }
+  // o que cada opção mostra e em que ordem. Proposta antiga (sem isso por opção): as chaves globais valem para todas;
+  // ordem "cara" = a de maior valor à mostra primeiro; sem ordem = simples → completa (igual à API)
+  function verCerimonia(d, x) { return typeof x.ver_cerimonia === 'boolean' ? x.ver_cerimonia : (d.mostrar_cerimonia !== false || d.mostrar_recepcao === false); }
+  function verRecepcao(d, x) { return typeof x.ver_recepcao === 'boolean' ? x.ver_recepcao : d.mostrar_recepcao !== false; }
+  function modoDe(d, x) { var c = verCerimonia(d, x), r = verRecepcao(d, x); return c && !r ? 'cerimonia' : !c && r ? 'junto' : 'separado'; }
+  function ordemDe(d) {
+    var nat = OPCOES.map(function (o) { return o.k; });
+    if (Array.isArray(d.ordem)) {
+      var r = d.ordem.filter(function (k, i) { return nat.indexOf(k) >= 0 && d.ordem.indexOf(k) === i; });
+      return r.concat(nat.filter(function (k) { return r.indexOf(k) < 0; }));
+    }
+    if (d.ordem === 'cara') {
+      var maior = function (k) {
+        var x = (d.opcoes || {})[k] || {}, vs = [];
+        if (verCerimonia(d, x) && temValor(x.cerimonia)) vs.push(x.cerimonia);
+        if (verRecepcao(d, x) && temValor(x.cerimonia_recepcao)) vs.push(x.cerimonia_recepcao);
+        return vs.length ? Math.max.apply(null, vs) : -1;
+      };
+      return nat.slice().sort(function (a, b) { return (maior(b) - maior(a)) || (nat.indexOf(b) - nat.indexOf(a)); });
+    }
+    return nat;
+  }
+  // menor e maior preço oferecido: "R$ 2.500 – 6.500"
+  function faixa(d) {
+    var vs = [];
+    OPCOES.forEach(function (o) {
+      var x = d.opcoes && d.opcoes[o.k];
+      if (!x || !x.on) return;
+      if (verCerimonia(d, x) && temValor(x.cerimonia)) vs.push(x.cerimonia);
+      if (verRecepcao(d, x) && temValor(x.cerimonia_recepcao)) vs.push(x.cerimonia_recepcao);
+    });
+    if (!vs.length) return '';
+    var mn = Math.min.apply(null, vs), mx = Math.max.apply(null, vs);
+    return mn === mx ? dinheiro(mn) : dinheiro(mn) + ' – ' + numero(mx);
+  }
+
+  // ---------- login ----------
+  // "visitante" (com ou sem espaço e maiúscula) a API reconhece e devolve papel "visitante"; qualquer outra senha é a do painel
+  $('fLogin').addEventListener('submit', function (ev) {
+    ev.preventDefault();
+    $('loginErro').hidden = true;
+    var porVisitante = !!(ev.submitter && ev.submitter.id === 'btVisitante');
+    var soltaA = ocupado($('btEntrar'), porVisitante ? '' : 'Entrando…'), soltaB = ocupado($('btVisitante'), porVisitante ? 'Entrando…' : '');
+    api('POST', '/login', { senha: $('senha').value }).then(function (j) {
+      sessao = { token: j.token, exp: j.exp, papel: j.papel === 'visitante' ? 'visitante' : 'admin' };
+      try { localStorage.setItem(CHAVE, JSON.stringify(sessao)); } catch (e) {}
+      Sandbox.apagar();   // visitante começa dos exemplos; administrador nunca vê um sandbox antigo
+      $('senha').value = ''; $('senha').type = 'password'; $('btOlho').textContent = 'Mostrar'; $('btOlho').setAttribute('aria-pressed', 'false');
+      filtro = 'abertas'; aba = 'hoje'; mesVisto = null; diaSel = ''; dmMes = null; abrirLista();
+      if (ehVisitante() && !guiaVisto()) abrirGuia();
+    }).catch(function (e) { $('loginErro').textContent = e.message; $('loginErro').hidden = false; }).then(function () { soltaA(); soltaB(); });
+  });
+  // "Entrar como visitante" preenche a senha e entra (é um botão de enviar do próprio formulário)
+  $('btVisitante').addEventListener('click', function () { $('senha').value = 'visitante'; });
+  $('btOlho').addEventListener('click', function () {
+    var ver = $('senha').type === 'password';
+    $('senha').type = ver ? 'text' : 'password';
+    this.textContent = ver ? 'Ocultar' : 'Mostrar'; this.setAttribute('aria-pressed', String(ver));
+  });
+  $('btSair').addEventListener('click', function () { sair(); });
+
+  // ---------- modo visitante: faixa, guia de boas-vindas e dicas ----------
+  var dicasFechadas = [], modoEditor = 'proposta';
+  try { dicasFechadas = JSON.parse(localStorage.getItem(CONFIG.CHAVE_DICAS) || '[]'); } catch (e) {}
+  if (!Array.isArray(dicasFechadas)) dicasFechadas = [];
+  function pintarPapel() {   // o que muda na tela entre administrador e visitante
+    var vis = logado() && ehVisitante();
+    document.body.classList.toggle('visitante', vis);
+    $('faixaVisitante').hidden = !vis;
+    medirFaixa(); pintarDicas();
+  }
+  function medirFaixa() {
+    var f = $('faixaVisitante');
+    document.documentElement.style.setProperty('--faixa-h', f.hidden ? '0px' : f.offsetHeight + 'px');
+  }
+  window.addEventListener('resize', medirFaixa);
+  if (window.ResizeObserver) new ResizeObserver(medirFaixa).observe($('faixaVisitante'));
+  function pintarDicas() {   // uma dica por tela, só para o visitante, até ele fechar
+    var vis = logado() && ehVisitante();
+    document.querySelectorAll('.dica-visitante').forEach(function (d) {
+      var so = d.getAttribute('data-modo');
+      d.hidden = !vis || dicasFechadas.indexOf(d.getAttribute('data-dica')) >= 0 || (!!so && so !== modoEditor);
+    });
+    document.body.classList.toggle('com-dica-modelo', !document.querySelector('.dica-visitante[data-dica="modelo"]').hidden);
+  }
+  document.querySelectorAll('.dica-visitante .dica-fechar').forEach(function (b) {
+    b.addEventListener('click', function () {
+      var d = b.parentNode, k = d.getAttribute('data-dica'), depois = d.nextElementSibling;
+      if (dicasFechadas.indexOf(k) < 0) dicasFechadas.push(k);
+      try { localStorage.setItem(CONFIG.CHAVE_DICAS, JSON.stringify(dicasFechadas)); } catch (e) {}
+      pintarDicas();
+      if (depois && depois.tagName === 'BUTTON' && !depois.hidden) depois.focus();   // o foco não se perde
+    });
+  });
+  function guiaVisto() { try { return localStorage.getItem(CONFIG.CHAVE_GUIA) === '1'; } catch (e) { return false; } }
+  function abrirGuia() {
+    try { localStorage.setItem(CONFIG.CHAVE_GUIA, '1'); } catch (e) {}
+    abrirFolha('folhaGuia');
+  }
+  $('btComoFunciona').addEventListener('click', abrirGuia);
+  $('guiaComecar').addEventListener('click', fecharFolhas);
+  $('guiaVerExemplo').href = BASE_LINK + 'exemplo';
+  $('guiaQuero').href = 'https://wa.me/' + CONFIG.WHATSAPP_RK + '?text=' + encodeURIComponent(CONFIG.TEXTOS.queroPainel);
+  document.querySelectorAll('[data-texto]').forEach(function (e) { var t = CONFIG.TEXTOS[e.getAttribute('data-texto')]; if (t) e.textContent = t; });
+  $('loginConvite').hidden = !CONFIG.DEMO;
+  // "Recomeçar": apaga o que o visitante mexeu e busca os exemplos de novo
+  $('btRecomecar').addEventListener('click', function () {
+    if (!confirm('Recomeçar do zero?\n\nO que você mexeu some e os exemplos voltam ao início.')) return;
+    Sandbox.apagar();
+    sujo = false; fecharFolhas(); semToast(); toastDepois = '';
+    propostas = []; contatos = []; vincularContato = null; contatoEd = null; carregada = false; modelo = null; editando = null; fechando = null;
+    aba = 'hoje'; filtro = 'abertas'; mesVisto = null; diaSel = ''; dmMes = null; cli = { base: 'evento', periodo: 'tudo', de: '', ate: '' };
+    if (history.state && history.state.tela === 'editor') { try { history.replaceState(null, ''); } catch (e) {} }
+    abrirLista().then(function () { if (carregada) toast('Pronto: os exemplos voltaram ao início'); });
+  });
+
+  // ---------- abas: agenda · propostas · clientes ----------
+  var ABAS = ['hoje', 'agenda', 'contatos', 'propostas', 'clientes', 'financeiro'];
+  function definirAba(a, semRolar) {
+    aba = ABAS.indexOf(a) >= 0 ? a : 'hoje';
+    document.querySelectorAll('#abas [data-aba]').forEach(function (b) { b.setAttribute('aria-selected', String(b.getAttribute('data-aba') === aba)); });
+    $('abaHoje').hidden = aba !== 'hoje'; $('abaAgenda').hidden = aba !== 'agenda'; $('abaContatos').hidden = aba !== 'contatos';
+    var nav = $('abas'), ativa = nav.querySelector('[aria-selected="true"]'); if (ativa && nav.scrollWidth > nav.clientWidth) nav.scrollLeft += ativa.getBoundingClientRect().left - nav.getBoundingClientRect().left - (nav.clientWidth - ativa.offsetWidth) / 2;   // no celular as abas deslizam: centraliza a ativa sem rolar a página
+    $('abaPropostas').hidden = aba !== 'propostas'; $('abaClientes').hidden = aba !== 'clientes'; $('abaFinanceiro').hidden = aba !== 'financeiro';
+    if (!semRolar) window.scrollTo(0, 0);
+    ajustarTotal();
+  }
+  document.querySelectorAll('#abas [data-aba]').forEach(function (b) { b.addEventListener('click', function () { definirAba(b.getAttribute('data-aba')); }); });
+
+  // ---------- carregar ----------
+  var VAZIO = {
+    nada: ['Nenhuma proposta ainda', 'Toque em “+ Nova proposta”: são 3 perguntas e o link sai pronto.'],
+    abertas: ['Nenhuma proposta em aberto', 'Os clientes que fecharam estão em “Clientes”; os que não fecharam, em “Não fechou”.'],
+    perdidas: ['Nada por aqui', 'As propostas marcadas como “Não fechou” aparecem aqui.'],
+    todas: ['Nenhuma proposta ainda', 'Toque em “+ Nova proposta”: são 3 perguntas e o link sai pronto.']
+  };
+  function abrirLista() {
+    pintarPapel();
+    mostrar('vLista');
+    definirAba(aba, true); pintarFiltro();
+    // mostra na hora o que já está na memória e confere com a API em seguida
+    if (carregada) desenharTudo();
+    else { limparNo($('lista')); $('lista').appendChild(el('p', 'carregando', 'Carregando…')); }
+    return carregarLista();
+  }
+  function carregarLista() {
+    var meu = ++pedido;
+    var cts = api('GET', '/admin/contatos').catch(function (e) { if (e && e.message === '401') throw e; return null; });   // sem contatos, o resto funciona
+    return Promise.all([api('GET', '/admin/propostas'), cts]).then(function (rs) {
+      if (meu !== pedido) return;
+      var r = rs[0]; if (Array.isArray(rs[1])) contatos = rs[1];
+      propostas = Array.isArray(r) ? r : []; ultimaCarga = Date.now(); carregada = true;
+      desenharTudo();
+    }).catch(function (e) {
+      if (e && e.message === '401') return;
+      if (meu !== pedido || carregada) return falhou(e);
+      var v = el('div', 'vazio'); v.appendChild(el('b', null, 'Não consegui carregar')); v.appendChild(el('span', null, e.message || 'Tente de novo.'));
+      var b = botao('b b-pq', 'Tentar de novo'); b.onclick = abrirLista; v.appendChild(b);
+      limparNo($('lista')); $('lista').appendChild(v);
+    });
+  }
+  function desenharTudo() { desenharResumo(); desenharLista(); desenharClientes(); desenharAgenda(); desenharFinanceiro(); desenharContatos(); desenharHoje(); }
+
+  // ---------- datas ----------
+  var DIAS = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'];
+  function hojeISO() { return isoLocal(new Date()); }
+  function dataDe(iso) { var p = String(iso || '').slice(0, 10).split('-'); return p.length === 3 ? new Date(+p[0], +p[1] - 1, +p[2]) : null; }
+  function diaSemana(iso) { var d = dataDe(iso); return d ? DIAS[d.getDay()] : ''; }
+  function faltam(iso) {
+    var d = dataDe(iso); if (!d) return '';
+    var n = Math.round((d - dataDe(hojeISO())) / 864e5);
+    if (n === 0) return 'é hoje'; if (n === 1) return 'é amanhã'; if (n > 1) return 'faltam ' + n + ' dias';
+    if (n === -1) return 'foi ontem'; return 'há ' + (-n) + ' dias';
+  }
+  function mesDe(iso) { return String(iso || '').slice(0, 7); }
+  function dois(n) { return (n < 10 ? '0' : '') + n; }
+  function chaveMes(y, m) { return y + '-' + dois(m + 1); }
+  function nomeMes(y, m, curto) {
+    var s = new Date(y, m, 1).toLocaleDateString('pt-BR', curto ? { month: 'short' } : { month: 'long', year: 'numeric' }).replace(/\./g, '');
+    return s.charAt(0).toUpperCase() + s.slice(1);
+  }
+  function ordemData(a, b) { return ((a.dados.data || '') + (a.dados.hora || '')).localeCompare((b.dados.data || '') + (b.dados.hora || '')); }
+  function somaFechado(lista) { return lista.reduce(function (a, p) { return a + valorFechado(p); }, 0); }
+
+  // ---------- financeiro: sinal e restante de cada evento fechado ----------
+  var TIPO_PAG = { sinal: 'Sinal', restante: 'Restante', parcela: 'Parcela' };
+  function pagamentosDe(p) { var f = p.fechamento || {}; return Array.isArray(f.pagamentos) ? f.pagamentos : []; }
+  function somaDinheiro(a, b) { return Math.round((a + b) * 100) / 100; }
+  function menosDias(iso, n) { var d = dataDe(iso); if (!d) return ''; d.setDate(d.getDate() - n); return isoLocal(d); }
+  // o padrão: sinal recebido no dia em que fechou; restante alguns dias antes (já recebido se o evento passou)
+  function pagamentosPadrao(total, dataFechou, dataEvento, hoje) {
+    var sinal = Math.round(total * SINAL_PCT / 100), rest = somaDinheiro(total, -sinal), venceRest = dataEvento ? menosDias(dataEvento, RESTANTE_DIAS_ANTES) : '', lista = [];
+    if (sinal > 0) lista.push({ tipo: 'sinal', valor: sinal, vence_em: dataFechou || '', pago_em: dataFechou || hoje });
+    if (rest > 0) lista.push({ tipo: 'restante', valor: rest, vence_em: venceRest, pago_em: dataEvento && dataEvento < hoje ? (venceRest || dataEvento) : '' });
+    return lista;
+  }
+  function statusPagamento(p) {
+    var pgs = pagamentosDe(p), hoje = hojeISO();
+    if (!pgs.length) return { cls: '', txt: 'Pagamentos não registrados' };
+    var pend = pgs.filter(function (x) { return !x.pago_em; });
+    if (!pend.length) return { cls: 'ok', txt: 'Tudo recebido' };
+    var soma = pend.reduce(function (a, x) { return somaDinheiro(a, x.valor || 0); }, 0);
+    var prox = pend.slice().sort(function (a, b) { return (a.vence_em || '9999').localeCompare(b.vence_em || '9999'); })[0];
+    var atras = !!(prox.vence_em && prox.vence_em < hoje);
+    return { cls: atras ? 'atraso' : '', txt: 'A receber ' + dinheiro(soma) + (prox.vence_em ? ' · ' + (TIPO_PAG[prox.tipo] || 'pagamento').toLowerCase() + (atras ? ' venceu ' : ' vence ') + dataCurta(prox.vence_em) : '') };
+  }
+
+  // ---------- clientes: quem fechou, com filtros de data para o faturamento ----------
+  var PERIODOS = {
+    evento: [['tudo', 'Tudo'], ['mes', 'Este mês'], ['prox', 'Próximo mês'], ['ano', 'Este ano'], ['anoprox', 'Ano que vem'], ['datas', 'Escolher datas']],
+    fechou: [['tudo', 'Tudo'], ['mes', 'Este mês'], ['mespass', 'Mês passado'], ['ano', 'Este ano'], ['anopass', 'Ano passado'], ['datas', 'Escolher datas']]
+  };
+  function fimDoMes(y, m) { return isoLocal(new Date(y, m + 1, 0)); }
+  function intervalo() {   // [de, até] em AAAA-MM-DD; vazio = sem limite
+    var h = new Date(), y = h.getFullYear(), m = h.getMonth();
+    switch (cli.periodo) {
+      case 'mes': return [chaveMes(y, m) + '-01', fimDoMes(y, m)];
+      case 'prox': var p = new Date(y, m + 1, 1); return [chaveMes(p.getFullYear(), p.getMonth()) + '-01', fimDoMes(p.getFullYear(), p.getMonth())];
+      case 'mespass': var a = new Date(y, m - 1, 1); return [chaveMes(a.getFullYear(), a.getMonth()) + '-01', fimDoMes(a.getFullYear(), a.getMonth())];
+      case 'ano': return [y + '-01-01', y + '-12-31'];
+      case 'anoprox': return [(y + 1) + '-01-01', (y + 1) + '-12-31'];
+      case 'anopass': return [(y - 1) + '-01-01', (y - 1) + '-12-31'];
+      case 'datas': return [cli.de || '', cli.ate || ''];
+      default: return ['', ''];
+    }
+  }
+  function dataBase(p) { return cli.base === 'fechou' ? String(p.fechado_em || '').slice(0, 10) : (p.dados && p.dados.data) || ''; }
+  function fechadasDoFiltro() {
+    var iv = intervalo(), todas = cli.periodo === 'tudo' || (cli.periodo === 'datas' && !iv[0] && !iv[1]);
+    return propostas.filter(function (p) {
+      if (etapaDe(p) !== 'fechada') return false;
+      if (todas) return true;
+      var d = dataBase(p);
+      return !!d && (!iv[0] || d >= iv[0]) && (!iv[1] || d <= iv[1]);
+    });
+  }
+  function pintarFiltrosClientes() {
+    document.querySelectorAll('#cliBase [data-base]').forEach(function (b) { b.setAttribute('aria-pressed', String(b.getAttribute('data-base') === cli.base)); });
+    var box = $('cliPeriodo'), lista = PERIODOS[cli.base];
+    if (!lista.some(function (x) { return x[0] === cli.periodo; })) cli.periodo = 'tudo';
+    limparNo(box);
+    lista.forEach(function (x) {
+      var b = botao(null, x[1]); b.setAttribute('aria-pressed', String(x[0] === cli.periodo));
+      b.onclick = function () { cli.periodo = x[0]; desenharClientes(); };
+      box.appendChild(b);
+    });
+    $('cliDatas').hidden = cli.periodo !== 'datas';
+    $('cliDe').value = cli.de; $('cliAte').value = cli.ate;
+  }
+  document.querySelectorAll('#cliBase [data-base]').forEach(function (b) {
+    b.addEventListener('click', function () { cli.base = b.getAttribute('data-base'); desenharClientes(); });
+  });
+  $('cliDe').addEventListener('change', function () { cli.de = this.value; desenharClientes(); });
+  $('cliAte').addEventListener('change', function () { cli.ate = this.value; desenharClientes(); });
+
+  function desenharResumo() {
+    var lista = fechadasDoFiltro(), total = somaFechado(lista);
+    $('rFechadas').textContent = lista.length;
+    $('rFechadasRot').textContent = lista.length === 1 ? 'Evento' : 'Eventos';
+    $('rMedio').textContent = lista.length ? dinheiro(Math.round(total / lista.length)) : '–';
+    $('rTotal').textContent = dinheiro(total);
+    ajustarTotal();
+    var iv = intervalo(), txt = $('cliPeriodoTxt'), base = cli.base === 'fechou' ? 'pela data em que fechou' : 'pela data do evento';
+    limparNo(txt);
+    if (cli.periodo === 'tudo' || (!iv[0] && !iv[1])) txt.appendChild(document.createTextNode('Todos os eventos fechados.'));
+    else {
+      txt.appendChild(document.createTextNode(iv[0] && iv[1] ? 'De ' : (iv[0] ? 'A partir de ' : 'Até ')));
+      if (iv[0]) txt.appendChild(el('b', null, dataCurta(iv[0])));
+      if (iv[0] && iv[1]) txt.appendChild(document.createTextNode(' a '));
+      if (iv[1]) txt.appendChild(el('b', null, dataCurta(iv[1])));
+      txt.appendChild(document.createTextNode(', ' + base + '.'));
+    }
+  }
+  function ajustarTotal() {   // um total grande encolhe até caber no quadro
+    ['rTotal', 'rMedio', 'fReceber', 'fAtrasado', 'fRecebidoMes', 'hjReceber'].forEach(function (id) {
+      var b = $(id), t = 1.8;
+      b.style.fontSize = '';
+      while (t > 1.05 && b.scrollWidth > b.clientWidth) { t -= 0.1; b.style.fontSize = t.toFixed(2) + 'rem'; }
+    });
+  }
+  window.addEventListener('resize', ajustarTotal);
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(ajustarTotal);
+  function secao(titulo, nota) { var s = el('div', 'secao', titulo); if (nota) s.appendChild(el('small', null, String(nota))); return s; }
+
+  // faturamento mês a mês do período (tocar num mês filtra só ele)
+  function desenharMeses(lista) {
+    var box = $('cliMeses'); limparNo(box);
+    var por = {};
+    lista.forEach(function (p) { var k = dataBase(p).slice(0, 7); if (!k) return; por[k] = por[k] || { n: 0, v: 0 }; por[k].n++; por[k].v += valorFechado(p); });
+    var meses = Object.keys(por).sort();
+    if (meses.length < 2) return;
+    var max = Math.max.apply(null, meses.map(function (k) { return por[k].v; })) || 1;
+    box.appendChild(secao('Mês a mês', cli.base === 'fechou' ? 'pelo dia em que fechou' : 'pela data do evento'));
+    var g = el('div', 'mes-a-mes');
+    meses.forEach(function (k) {
+      var y = +k.slice(0, 4), m = +k.slice(5, 7) - 1, row = botao('linha-mes');
+      row.setAttribute('aria-label', nomeMes(y, m) + ': ' + por[k].n + ' eventos, ' + dinheiro(por[k].v));
+      row.appendChild(el('span', 'm', nomeMes(y, m, true) + ' ' + String(y).slice(2)));
+      var tr = el('span', 'trilho'), barra = el('i'); barra.style.width = Math.max(3, Math.round(por[k].v / max * 100)) + '%'; tr.appendChild(barra); row.appendChild(tr);
+      var v = el('span', 'v', dinheiro(por[k].v)); v.appendChild(el('small', null, por[k].n + (por[k].n === 1 ? ' evento' : ' eventos'))); row.appendChild(v);
+      row.onclick = function () { cli.periodo = 'datas'; cli.de = k + '-01'; cli.ate = fimDoMes(y, m); desenharClientes(); };
+      g.appendChild(row);
+    });
+    box.appendChild(g);
+  }
+
+  function desenharClientes() {
+    pintarFiltrosClientes(); desenharResumo();
+    var box = $('clientes'), hoje = hojeISO(); limparNo(box);
+    var todasFechadas = propostas.filter(function (p) { return etapaDe(p) === 'fechada'; });
+    var fechadas = fechadasDoFiltro();
+    desenharMeses(fechadas);
+    if (!todasFechadas.length) {
+      var v = el('div', 'vazio'); v.appendChild(el('b', null, 'Nenhum evento fechado ainda'));
+      v.appendChild(el('span', null, 'Quando um cliente fechar, toque em “Fechou?” na proposta. Ele aparece aqui e na agenda.'));
+      box.appendChild(v); return;
+    }
+    if (!fechadas.length) {
+      var nv = el('div', 'vazio'); nv.appendChild(el('b', null, 'Nenhum evento neste período'));
+      nv.appendChild(el('span', null, 'Troque o período ou toque em “Tudo”.'));
+      box.appendChild(nv); return;
+    }
+    var prox = fechadas.filter(function (p) { return p.dados.data && p.dados.data >= hoje; }).sort(ordemData);
+    var sem = fechadas.filter(function (p) { return !p.dados.data; });
+    var pass = fechadas.filter(function (p) { return p.dados.data && p.dados.data < hoje; }).sort(ordemData).reverse();
+    function grupo(lista) { var g = el('div', 'cards'); lista.forEach(function (p) { g.appendChild(cartaoCliente(p)); }); return g; }
+    if (prox.length || cli.periodo === 'tudo') {
+      box.appendChild(secao('Próximos eventos', prox.length ? prox.length + (prox.length === 1 ? ' data' : ' datas') : 'nenhuma data pela frente'));
+      if (prox.length) box.appendChild(grupo(prox));
+    }
+    if (sem.length) { box.appendChild(secao('Sem data definida', sem.length)); box.appendChild(grupo(sem)); }
+    if (pass.length) {
+      var det = el('details', 'passados'), sum = el('summary');
+      det.open = cli.periodo !== 'tudo';   // com um período escolhido, a lista já vem aberta
+      sum.appendChild(el('span', null, 'Já aconteceram')); sum.appendChild(el('small', null, pass.length + (pass.length === 1 ? ' evento' : ' eventos')));
+      det.appendChild(sum); det.appendChild(grupo(pass)); box.appendChild(det);
+    }
+  }
+  function cartaoCliente(p) {
+    var d = p.dados || {}, c = el('article', 'pcard cliente');
+    var abrir = botao('abrir'); abrir.title = 'Abrir a proposta'; abrir.onclick = function () { abrirEditor(p); };
+    abrir.appendChild(el('span', 'nome', d.cliente || 'Sem nome'));
+    if (d.data) { var q = el('span', 'quando'); q.appendChild(el('b', null, diaSemana(d.data) + ' · ' + dataCurta(d.data) + (d.hora ? ' · ' + horaTxt(d.hora) : ''))); q.appendChild(document.createTextNode(' · ' + faltam(d.data))); abrir.appendChild(q); }
+    else abrir.appendChild(el('span', 'sub', 'Sem data'));
+    if (d.local) abrir.appendChild(el('span', 'sub', d.local));
+    abrir.appendChild(el('span', 'valor', dinheiro(valorFechado(p))));
+    var rot = rotulosFechamento(p); if (rot.length) abrir.appendChild(el('span', 'selo fechada', rot.join(' · ')));
+    if (p.fechado_em) abrir.appendChild(el('span', 'fechou-em', 'Fechou em ' + dataCurta(p.fechado_em)));
+    var st = statusPagamento(p); abrir.appendChild(el('span', 'pag-status ' + st.cls, st.txt));
+    c.appendChild(abrir);
+    var ac = el('div', 'acoes');
+    var bCp = botao('b b-pq b-ouro', 'Copiar link'); bCp.onclick = function () { copiarLink(p); };
+    var bVer = el('a', 'b b-pq', 'Ver proposta'); bVer.href = linkDe(p); bVer.target = '_blank'; bVer.rel = 'noopener';
+    ac.appendChild(bCp); ac.appendChild(bVer); c.appendChild(ac);
+    return c;
+  }
+
+  // ---------- financeiro: o que entra e quando ----------
+  function porVence(a, b) { return (a.pg.vence_em || '9999').localeCompare(b.pg.vence_em || '9999') || ordemData(a.p, b.p); }
+  function linhaPagto(x, hoje) {
+    var p = x.p, pg = x.pg, d = p.dados || {}, atras = !!(pg.vence_em && pg.vence_em < hoje);
+    var r = el('article', 'pagto' + (atras ? ' atrasado' : ''));
+    var q = botao('q'); q.title = 'Abrir a proposta'; q.onclick = function () { abrirEditor(p); };
+    q.appendChild(el('span', 'tipo', TIPO_PAG[pg.tipo] || 'Pagamento'));
+    q.appendChild(el('b', null, d.cliente || 'Sem nome'));
+    q.appendChild(el('span', 'quando', pg.vence_em ? (atras ? 'Venceu ' : 'Vence ') + dataCurta(pg.vence_em) + ' · ' + faltam(pg.vence_em) : 'Sem data combinada'));
+    if (d.data) q.appendChild(el('span', null, 'Evento ' + dataCurta(d.data)));
+    r.appendChild(q);
+    var lado = el('div', 'lado'); lado.appendChild(el('span', 'v', dinheiro(pg.valor)));
+    var b = botao('b b-ouro', 'Recebi'); b.setAttribute('aria-label', 'Recebi: ' + (TIPO_PAG[pg.tipo] || 'pagamento') + ' de ' + (d.cliente || 'sem nome'));
+    b.onclick = function () { abrirRecebi(p, x.i); };
+    lado.appendChild(b); r.appendChild(lado);
+    return r;
+  }
+  function desenharFinanceiro() {
+    var box = $('financeiro'), hoje = hojeISO(), mes = hoje.slice(0, 7); limparNo(box);
+    var fechadas = propostas.filter(function (p) { return etapaDe(p) === 'fechada'; });
+    var semReg = fechadas.filter(function (p) { return !pagamentosDe(p).length; });
+    var itens = [];
+    fechadas.forEach(function (p) { pagamentosDe(p).forEach(function (pg, i) { if (temValor(pg.valor)) itens.push({ p: p, i: i, pg: pg }); }); });
+    var soma = function (l) { return l.reduce(function (a, x) { return somaDinheiro(a, x.pg.valor); }, 0); };
+    var pend = itens.filter(function (x) { return !x.pg.pago_em; });
+    var atrasados = pend.filter(function (x) { return x.pg.vence_em && x.pg.vence_em < hoje; }).sort(porVence);
+    var proximos = pend.filter(function (x) { return !x.pg.vence_em || x.pg.vence_em >= hoje; }).sort(porVence);
+    $('fReceber').textContent = dinheiro(soma(pend));
+    $('fAtrasado').textContent = dinheiro(soma(atrasados));
+    $('fAtrasadoCx').classList.toggle('zero', !atrasados.length);
+    $('fRecebidoMes').textContent = dinheiro(soma(itens.filter(function (x) { return x.pg.pago_em && x.pg.pago_em.slice(0, 7) === mes; })));
+    $('fRecebidoMesRot').textContent = 'Recebido em ' + new Date(+mes.slice(0, 4), +mes.slice(5, 7) - 1, 1).toLocaleDateString('pt-BR', { month: 'long' });
+    ajustarTotal();
+    if (!fechadas.length) {
+      var v = el('div', 'vazio'); v.appendChild(el('b', null, 'Nada para receber ainda'));
+      v.appendChild(el('span', null, 'Quando um cliente fechar, o sinal e o restante aparecem aqui com a data de cada um.'));
+      box.appendChild(v); return;
+    }
+    if (semReg.length) {
+      var av = el('div', 'fin-aviso'), tx = el('p');
+      tx.appendChild(el('b', null, semReg.length + (semReg.length === 1 ? ' evento fechado' : ' eventos fechados')));
+      tx.appendChild(document.createTextNode((semReg.length === 1 ? ' ainda está' : ' ainda estão') + ' sem sinal e restante registrados, e fora do “a receber”.'));
+      av.appendChild(tx);
+      var bp = botao('b b-ouro', 'Registrar com o padrão'); bp.onclick = function () { registrarPadrao(semReg, bp); }; av.appendChild(bp);
+      av.appendChild(el('small', null, 'Padrão: sinal de ' + SINAL_PCT + '% recebido no dia em que fechou e restante até ' + RESTANTE_DIAS_ANTES + ' dias antes do evento (já recebido nos eventos que já aconteceram). O que for diferente você corrige depois em Clientes, abrindo o cliente e tocando em Editar.'));
+      box.appendChild(av);
+    }
+    function lista(l) { var g = el('div', 'pagtos'); l.forEach(function (x) { g.appendChild(linhaPagto(x, hoje)); }); return g; }
+    if (atrasados.length) { box.appendChild(secao('Atrasados', atrasados.length + (atrasados.length === 1 ? ' pagamento' : ' pagamentos'))); box.appendChild(lista(atrasados)); }
+    box.appendChild(secao('Próximos recebimentos', proximos.length ? proximos.length + (proximos.length === 1 ? ' pagamento' : ' pagamentos') : ''));
+    if (proximos.length) box.appendChild(lista(proximos));
+    else box.appendChild(el('p', 'nada', itens.length ? 'Nada pendente: tudo o que foi combinado já entrou.' : 'Os pagamentos aparecem aqui quando você registrar o sinal e o restante.'));
+    var por = {}, desde = menosDias(hoje, 365).slice(0, 7);
+    itens.forEach(function (x) {
+      var k = (x.pg.pago_em || x.pg.vence_em || '').slice(0, 7); if (!k || k < desde) return;
+      var m = por[k] = por[k] || { rec: 0, ar: 0 };
+      if (x.pg.pago_em) m.rec = somaDinheiro(m.rec, x.pg.valor); else m.ar = somaDinheiro(m.ar, x.pg.valor);
+    });
+    var meses = Object.keys(por).sort();
+    if (!meses.length) return;
+    var max = Math.max.apply(null, meses.map(function (k) { return por[k].rec + por[k].ar; })) || 1;
+    box.appendChild(secao('Mês a mês', 'recebido e a receber'));
+    var g = el('div', 'mes-a-mes');
+    meses.forEach(function (k) {
+      var y = +k.slice(0, 4), m = +k.slice(5, 7) - 1, x = por[k], row = el('div', 'linha-mes fixa');
+      row.appendChild(el('span', 'm', nomeMes(y, m, true) + ' ' + String(y).slice(2)));
+      var tr = el('span', 'trilho duplo'), i1 = el('i'), i2 = el('i', 'ar');
+      i1.style.width = Math.round(x.rec / max * 100) + '%'; i2.style.width = Math.round(x.ar / max * 100) + '%';
+      tr.appendChild(i1); tr.appendChild(i2); row.appendChild(tr);
+      var v = el('span', 'v', dinheiro(somaDinheiro(x.rec, x.ar)));
+      if (x.rec) v.appendChild(el('small', null, dinheiro(x.rec) + ' recebido'));
+      if (x.ar) v.appendChild(el('small', null, dinheiro(x.ar) + ' a receber'));
+      row.appendChild(v); g.appendChild(row);
+    });
+    box.appendChild(g);
+  }
+  function registrarPadrao(lista, bt) {
+    if (!confirm('Registrar o padrão em ' + lista.length + (lista.length === 1 ? ' evento' : ' eventos') + '?\n\nSinal de ' + SINAL_PCT + '% já recebido no dia em que fechou e restante até ' + RESTANTE_DIAS_ANTES + ' dias antes do evento. Nos eventos que já aconteceram, o restante entra como recebido.\n\nDepois você corrige o que for diferente em Editar.')) return;
+    var solta = ocupado(bt, 'Registrando…'), hoje = hojeISO(), fila = lista.slice(), feitos = 0;
+    function proximo() {
+      if (!fila.length) { solta(); return carregarLista().then(function () { toast(feitos + (feitos === 1 ? ' evento registrado' : ' eventos registrados')); }); }
+      var p = fila.shift(), f = JSON.parse(JSON.stringify(p.fechamento || {}));
+      f.data = f.data || p.fechado_em || hoje;
+      f.pagamentos = pagamentosPadrao(valorFechado(p), f.data, (p.dados || {}).data, hoje);
+      return api('PUT', '/admin/propostas/' + p.id + '/etapa', { etapa: 'fechada', fechamento: f }).then(function (np) { atualizarNaLista(np); feitos++; return proximo(); });
+    }
+    proximo().catch(function (e) { solta(); desenharTudo(); if (e && e.message === '401') return; falhou(e); });
+  }
+
+  // ---------- hoje: o dia e o mês de relance ----------
+  function diaLocal(isoHora) { var d = new Date(isoHora || ''); return isNaN(d.getTime()) ? '' : isoLocal(d); }
+  function diasDesde(iso) { var d = dataDe(iso); return d ? Math.round((dataDe(hojeISO()) - d) / 864e5) : 0; }
+  function linhaLembrete(p, texto, msg) {
+    var d = p.dados || {}, r = el('article', 'lembrete');
+    var q = botao('q'); q.title = 'Abrir a proposta'; q.onclick = function () { abrirEditor(p); };
+    q.appendChild(el('b', null, d.cliente || 'Sem nome'));
+    q.appendChild(el('span', null, texto));
+    var sub = [d.data && dataCurta(d.data), faixa(d)].filter(Boolean).join(' · '); if (sub) q.appendChild(el('span', null, sub));
+    r.appendChild(q);
+    var lado = el('div', 'lado');
+    var ce = contatoDe(p), w = el('a', 'b b-pq b-ouro', 'WhatsApp'); whatsLink(w, ce && ce.whatsapp, msg, ce ? ce.nome : d.cliente); lado.appendChild(w);
+    var bF = botao('b b-pq b-verde', 'Fechou?'); bF.onclick = function () { abrirFechou(p); }; lado.appendChild(bF);
+    r.appendChild(lado);
+    return r;
+  }
+  function desenharHoje() {
+    var hoje = hojeISO(), fim = hojeMais(6), box = $('hoje'), agora = new Date(); limparNo(box);
+    var oi = agora.getHours() < 12 ? 'Bom dia' : agora.getHours() < 18 ? 'Boa tarde' : 'Boa noite';
+    $('hjSaudacao').textContent = CONFIG.NOME_SAUDACAO ? oi + ', ' + CONFIG.NOME_SAUDACAO : oi;
+    var dt = agora.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' });
+    $('hjData').textContent = dt.charAt(0).toUpperCase() + dt.slice(1);
+    var fechadas = propostas.filter(function (p) { return etapaDe(p) === 'fechada'; });
+    var semana = fechadas.filter(function (p) { var d = p.dados && p.dados.data; return d && d >= hoje && d <= fim; }).sort(ordemData);
+    var pags = [];
+    fechadas.forEach(function (p) { pagamentosDe(p).forEach(function (pg, i) { if (temValor(pg.valor) && !pg.pago_em && pg.vence_em && pg.vence_em <= fim) pags.push({ p: p, i: i, pg: pg }); }); });
+    pags.sort(porVence);
+    var abertas = propostas.filter(function (p) { return etapaDe(p) === 'aberta' && p.status === 'publicada'; });
+    var chamar = abertas.filter(function (p) { return p.views > 0 && p.primeira_vista && diasDesde(diaLocal(p.primeira_vista)) >= DIAS_SEM_RESPOSTA; })
+      .sort(function (a, b) { return String(a.primeira_vista).localeCompare(String(b.primeira_vista)); });
+    var naoAbriram = abertas.filter(function (p) { return !p.views; }).sort(function (a, b) { return String(a.criado_em).localeCompare(String(b.criado_em)); });
+    $('hjEventos').textContent = semana.length; $('hjEventosRot').textContent = semana.length === 1 ? 'Evento em 7 dias' : 'Eventos em 7 dias';
+    $('hjReceber').textContent = dinheiro(pags.reduce(function (a, x) { return somaDinheiro(a, x.pg.valor); }, 0));
+    var lembretes = contatos.filter(function (c) { return c.lembrete_em && c.lembrete_em <= hoje; }).sort(function (a, b) { return a.lembrete_em.localeCompare(b.lembrete_em); });
+    $('hjChamar').textContent = chamar.length + naoAbriram.length + lembretes.length;
+    ajustarTotal();
+    box.appendChild(secao('Próximos 7 dias', semana.length ? semana.length + (semana.length === 1 ? ' evento' : ' eventos') : ''));
+    if (semana.length) { var g = el('div', 'mes-lista'); semana.forEach(function (p) { g.appendChild(linhaEvento(p)); }); box.appendChild(g); }
+    else box.appendChild(el('p', 'nada', 'Nenhum evento nos próximos 7 dias.'));
+    box.appendChild(secao('Pagamentos da semana', pags.length ? pags.length + (pags.length === 1 ? ' pagamento' : ' pagamentos') : ''));
+    if (pags.length) { var gp = el('div', 'pagtos'); pags.forEach(function (x) { gp.appendChild(linhaPagto(x, hoje)); }); box.appendChild(gp); }
+    else box.appendChild(el('p', 'nada', 'Nenhum pagamento vence nesta semana.'));
+    box.appendChild(secao('Lembretes', lembretes.length ? lembretes.length + (lembretes.length === 1 ? ' contato' : ' contatos') : ''));
+    if (lembretes.length) { var gl = el('div', 'pagtos'); lembretes.forEach(function (c) { gl.appendChild(linhaContato(c, opcoesLembrete(c, hoje))); }); box.appendChild(gl); }
+    else box.appendChild(el('p', 'nada', 'Nenhum lembrete para hoje.'));
+    box.appendChild(secao('Hora de chamar', 'abriram há ' + DIAS_SEM_RESPOSTA + ' dias ou mais e não responderam'));
+    if (chamar.length) {
+      var gc = el('div', 'pagtos');
+      chamar.forEach(function (p) { var n = diasDesde(diaLocal(p.primeira_vista)); gc.appendChild(linhaLembrete(p, 'Abriu há ' + n + ' dias · ' + p.views + (p.views === 1 ? ' abertura' : ' aberturas') + (p.ultima_vista ? ' · última ' + quando(p.ultima_vista) : ''), mensagemRetorno(p))); });
+      box.appendChild(gc);
+    } else box.appendChild(el('p', 'nada', 'Ninguém esperando resposta há ' + DIAS_SEM_RESPOSTA + ' dias ou mais.'));
+    box.appendChild(secao('Ainda não abriram', naoAbriram.length ? naoAbriram.length + (naoAbriram.length === 1 ? ' proposta' : ' propostas') : ''));
+    if (naoAbriram.length) {
+      var gn = el('div', 'pagtos');
+      naoAbriram.forEach(function (p) { var n = diasDesde(diaLocal(p.criado_em)); gn.appendChild(linhaLembrete(p, n <= 0 ? 'Criada hoje' : 'Criada há ' + n + (n === 1 ? ' dia' : ' dias'), mensagemProposta(p))); });
+      box.appendChild(gn);
+    } else box.appendChild(el('p', 'nada', 'Todas as propostas publicadas já foram abertas pelo cliente.'));
+    desenharMes();
+  }
+  function numerosDoMes(k) {
+    var r = { enviadas: 0, abertas: 0, fecharam: 0, vendas: 0, vendido: 0, entregas: 0, entregue: 0, recebido: 0, opcoes: {} };
+    propostas.forEach(function (p) {
+      var et = etapaDe(p), d = p.dados || {};
+      if (p.publicada_alguma_vez && diaLocal(p.criado_em).slice(0, 7) === k) { r.enviadas++; if (p.views > 0) r.abertas++; if (et === 'fechada') r.fecharam++; }
+      if (et !== 'fechada') return;
+      if (String(p.fechado_em || '').slice(0, 7) === k) {
+        r.vendas++; r.vendido = somaDinheiro(r.vendido, valorFechado(p));
+        var rot = rotulosFechamento(p).slice(0, 2).join(' · ') || 'Outro'; r.opcoes[rot] = (r.opcoes[rot] || 0) + 1;
+      }
+      if (String(d.data || '').slice(0, 7) === k) { r.entregas++; r.entregue = somaDinheiro(r.entregue, valorFechado(p)); }
+      pagamentosDe(p).forEach(function (pg) { if (pg.pago_em && pg.pago_em.slice(0, 7) === k && temValor(pg.valor)) r.recebido = somaDinheiro(r.recebido, pg.valor); });
+    });
+    r.taxa = r.enviadas ? Math.round(r.fecharam / r.enviadas * 100) : null;
+    r.ticket = r.vendas ? Math.round(r.vendido / r.vendas) : null;
+    return r;
+  }
+  function fmtMetrica(v, tipo) { if (v == null) return '–'; return tipo === 'r' ? dinheiro(v) : tipo === '%' ? v + '%' : String(v); }
+  function comparacao(atual, antes, tipo, rot) {
+    var s = el('span', 'dl'), txt = rot + ': ' + fmtMetrica(antes, tipo);
+    if (atual != null && antes != null) {
+      if (tipo === '%') { var dp = atual - antes; if (dp) { s.classList.add(dp > 0 ? 'sobe' : 'desce'); txt += ' (' + (dp > 0 ? '+' : '') + dp + ' pontos)'; } }
+      else if (antes > 0) { var pc = Math.round((atual - antes) / antes * 100); if (pc) { s.classList.add(pc > 0 ? 'sobe' : 'desce'); txt += ' (' + (pc > 0 ? '+' : '') + pc + '%)'; } }
+      else if (atual > 0) s.classList.add('sobe');
+    }
+    s.textContent = txt; return s;
+  }
+  function desenharMes() {
+    if (!dmMes) dmMes = mesAtual();
+    var y = dmMes.y, m = dmMes.m, k = chaveMes(y, m), box = $('doMes'), at = mesAtual(); limparNo(box);
+    $('dmTitulo').textContent = nomeMes(y, m);
+    $('dmHoje').hidden = y === at.y && m === at.m;
+    var pa = new Date(y, m - 1, 1), py = pa.getFullYear(), pm = pa.getMonth();
+    var r = numerosDoMes(k), ant = numerosDoMes(chaveMes(py, pm)), ano = numerosDoMes(chaveMes(y - 1, m));
+    var rotAnt = nomeMes(py, pm, true) + ' ' + String(py).slice(2), rotAno = nomeMes(y - 1, m, true) + ' ' + String(y - 1).slice(2);
+    box.appendChild(secao('Propostas do mês', 'as enviadas neste mês e o que aconteceu com elas'));
+    var fun = el('div', 'numeros');
+    [['Enviadas', r.enviadas], ['Abertas pelo cliente', r.abertas], ['Fecharam', r.fecharam]].forEach(function (x) { var c = el('div'); c.appendChild(el('b', null, String(x[1]))); c.appendChild(el('span', null, x[0])); fun.appendChild(c); });
+    box.appendChild(fun);
+    box.appendChild(el('p', 'periodo-txt', r.enviadas ? 'Taxa de fechamento: ' + r.taxa + '% (' + r.fecharam + ' de ' + r.enviadas + ' propostas).' : 'Nenhuma proposta enviada neste mês.'));
+    box.appendChild(secao('Faturamento', 'o que você vendeu × os eventos que acontecem no mês'));
+    var fat = el('div', 'numeros dois');
+    var c1 = el('div', 'total'); c1.appendChild(el('b', null, dinheiro(r.vendido))); c1.appendChild(el('span', null, 'Vendido · ' + r.vendas + (r.vendas === 1 ? ' contrato' : ' contratos'))); fat.appendChild(c1);
+    var c2 = el('div'); c2.appendChild(el('b', null, dinheiro(r.entregue))); c2.appendChild(el('span', null, 'Eventos do mês · ' + r.entregas)); fat.appendChild(c2);
+    box.appendChild(fat);
+    var top = Object.keys(r.opcoes).sort(function (a, b) { return r.opcoes[b] - r.opcoes[a] || a.localeCompare(b); })[0];
+    var info = el('p', 'vendas');
+    info.appendChild(document.createTextNode('Ticket médio: ')); info.appendChild(el('b', null, r.ticket != null ? dinheiro(r.ticket) : '–'));
+    info.appendChild(document.createTextNode(' · Mais vendida: ')); info.appendChild(el('b', null, top ? top + ' (' + r.opcoes[top] + ')' : '–'));
+    box.appendChild(info);
+    box.appendChild(secao('Comparando', 'com ' + rotAnt.toLowerCase() + ' e com ' + rotAno.toLowerCase()));
+    var g = el('div', 'comparar');
+    [['Propostas enviadas', 'enviadas', 'n'], ['Taxa de fechamento', 'taxa', '%'], ['Contratos fechados', 'vendas', 'n'], ['Vendido', 'vendido', 'r'],
+      ['Eventos do mês', 'entregue', 'r'], ['Ticket médio', 'ticket', 'r'], ['Recebido', 'recebido', 'r']].forEach(function (x) {
+      var row = el('div', 'comp-linha');
+      row.appendChild(el('span', 'rot', x[0])); row.appendChild(el('b', null, fmtMetrica(r[x[1]], x[2])));
+      var det = el('span', 'det');
+      det.appendChild(comparacao(r[x[1]], ant[x[1]], x[2], rotAnt)); det.appendChild(document.createTextNode(' · ')); det.appendChild(comparacao(r[x[1]], ano[x[1]], x[2], rotAno));
+      row.appendChild(det); g.appendChild(row);
+    });
+    box.appendChild(g);
+  }
+  $('dmAnt').addEventListener('click', function () { var d = new Date(dmMes.y, dmMes.m - 1, 1); dmMes = { y: d.getFullYear(), m: d.getMonth() }; desenharMes(); });
+  $('dmProx').addEventListener('click', function () { var d = new Date(dmMes.y, dmMes.m + 1, 1); dmMes = { y: d.getFullYear(), m: d.getMonth() }; desenharMes(); });
+  $('dmHoje').addEventListener('click', function () { dmMes = mesAtual(); desenharMes(); });
+
+  // ---------- contatos: quem pediu preço, de onde veio e quando chamar ----------
+  var ORIGENS = [['instagram', 'Instagram'], ['portal', CONFIG.ROTULO_PORTAL], ['indicacao', 'Indicação'], ['google', 'Google'], ['whatsapp', 'WhatsApp'], ['outro', 'Outro']];
+  function nomeOrigem(k) { var o = ORIGENS.filter(function (x) { return x[0] === k; })[0]; return o ? o[1] : ''; }
+  function atualizarContato(c) { var i = contatos.findIndex(function (x) { return x.id === c.id; }); if (i >= 0) contatos[i] = c; else contatos.unshift(c); }
+  function propostaDoContato(c) { return c && c.proposta_id ? propostas.filter(function (p) { return p.id === c.proposta_id; })[0] || null : null; }
+  function contatoDe(p) { return p && p.id ? contatos.filter(function (c) { return c.proposta_id === p.id; })[0] || null : null; }
+  function mascaraWhats(d) {
+    d = String(d || '');
+    if (d.length === 11) return '(' + d.slice(0, 2) + ') ' + d.slice(2, 7) + '-' + d.slice(7);
+    if (d.length === 10) return '(' + d.slice(0, 2) + ') ' + d.slice(2, 6) + '-' + d.slice(6);
+    return d;
+  }
+  // O botão abre o WhatsApp do próprio dono do painel com a mensagem escrita (com o número: direto na conversa;
+  // sem: ele escolhe o contato). Não há conexão nem API do WhatsApp: nada é enviado sozinho, ele aperta enviar.
+  function linkWhats(num, msg) { return 'https://wa.me/' + (num ? '55' + num : '') + '?text=' + encodeURIComponent(msg); }
+  // No modo visitante os números são fictícios: o clique abre a folha "Mensagem pronta" (ver o ouvinte abaixo).
+  function whatsLink(a, num, msg, nome) {
+    a.href = linkWhats(num, msg); a.target = '_blank'; a.rel = 'noopener';
+    a.setAttribute('data-whats', num ? '1' : '0'); a.setAttribute('data-msg', msg); a.setAttribute('data-nome', nome || '');
+  }
+  document.addEventListener('click', function (e) {
+    var a = e.target && e.target.closest ? e.target.closest('a[data-whats]') : null;
+    if (!a || !ehVisitante()) return;
+    e.preventDefault();
+    abrirWhatsDemo(a.getAttribute('data-msg') || '', a.getAttribute('data-nome') || '', a.getAttribute('data-whats') === '1');
+  });
+  function abrirWhatsDemo(msg, nome, temNumero) {
+    var n = nomeCurto(nome);
+    $('wzPara').textContent = temNumero ? 'Para: ' + (nome || 'o cliente') : 'Sem WhatsApp anotado: você escolhe para quem mandar';
+    $('wzMsg').textContent = msg;
+    $('wzExplica').textContent = temNumero
+      ? 'No seu painel, este botão abre o WhatsApp do seu celular já na conversa com ' + (n || 'o cliente') + ', com esta mensagem escrita. Você confere e aperta enviar. Nada sai sozinho e não precisa conectar nada.'
+      : 'No seu painel, este botão abre o WhatsApp do seu celular com esta mensagem escrita, e você escolhe a conversa. Nada sai sozinho e não precisa conectar nada.';
+    $('wzTestar').href = linkWhats('', msg);
+    FOLHAS.forEach(function (id) { $(id).hidden = true; });
+    abrirFolha('folhaWhats');
+  }
+  // "Marina & Rafael" → "Marina e Rafael" · "Helena · 15 anos" → "Helena" · "Bodas de prata · Lúcia & Antônio" → "Lúcia e Antônio"
+  function nomeCurto(n) {
+    var partes = String(n || '').split('·').map(function (x) { return x.trim(); }).filter(Boolean);
+    var p = partes.filter(function (x) { return x.indexOf('&') >= 0; })[0] || partes[0] || '';
+    return p.replace(/\s*&\s*/g, ' e ');
+  }
+  function oi(nome) { var n = nomeCurto(nome); return 'Oi' + (n ? ', ' + n : '') + '!'; }
+  function mensagemProposta(p) { return oi(p.dados && p.dados.cliente) + ' Aqui está a proposta que preparei: ' + linkDe(p); }
+  function mensagemRetorno(p) { return oi(p.dados && p.dados.cliente) + ' Tudo bem? Deu para ver a proposta? Qualquer dúvida, estou por aqui.'; }
+  function mensagemContato(c) { var p = propostaDoContato(c); return p ? mensagemRetorno(p) : oi(c.nome) + ' Tudo bem? ' + CONFIG.ASSINATURA_WHATS; }
+  function statusContato(c) {
+    var p = propostaDoContato(c); if (!p) return 'Sem proposta';
+    var et = etapaDe(p);
+    if (et === 'fechada') return 'Fechou · ' + dinheiro(valorFechado(p));
+    if (et === 'perdida') return 'Não fechou' + (p.fechamento && p.fechamento.motivo ? ' · ' + p.fechamento.motivo : '');
+    return p.views ? 'Proposta aberta ' + p.views + (p.views === 1 ? ' vez' : ' vezes') : 'Proposta ainda não aberta';
+  }
+  function opcoesLembrete(c, hoje) {
+    var atras = c.lembrete_em < hoje;
+    return { texto: (c.lembrete_txt || 'Chamar de volta') + (atras ? ' · era para ' + dataCurta(c.lembrete_em) : ''), cls: atras ? 'atraso' : '', acoes: (c.whatsapp ? ['whats'] : []).concat(['feito']) };
+  }
+  function linhaContato(c, o) {
+    var r = el('article', 'lembrete contato');
+    var q = botao('q'); q.title = 'Abrir o contato'; q.onclick = function () { abrirContato(c); };
+    q.appendChild(el('b', null, c.nome || 'Sem nome'));
+    if (o.texto) q.appendChild(el('span', o.cls || null, o.texto));
+    var sub = [c.whatsapp && mascaraWhats(c.whatsapp), nomeOrigem(c.origem), c.data_evento && 'evento ' + dataCurta(c.data_evento)].filter(Boolean).join(' · ');
+    if (sub) q.appendChild(el('span', null, sub));
+    r.appendChild(q);
+    var lado = el('div', 'lado');
+    (o.acoes || []).forEach(function (a) {
+      if (a === 'whats') { var w = el('a', 'b b-pq b-ouro', 'WhatsApp'); whatsLink(w, c.whatsapp, mensagemContato(c), c.nome); lado.appendChild(w); }
+      if (a === 'feito') { var f = botao('b b-pq', 'Feito'); f.onclick = function () { lembreteFeito(c, f); }; lado.appendChild(f); }
+      if (a === 'proposta') { var pb = botao('b b-pq b-verde', 'Fazer proposta'); pb.onclick = function () { novaPropostaDeContato(c); }; lado.appendChild(pb); }
+    });
+    if (lado.childNodes.length) r.appendChild(lado); else r.classList.add('sem-lado');
+    return r;
+  }
+  function desenharContatos() {
+    var box = $('contatos'), hoje = hojeISO(), antes = box.querySelector('details.passados'), aberto = !!(antes && antes.open);   // redesenhar não fecha "Todos os contatos"
+    limparNo(box);
+    var chamar = contatos.filter(function (c) { return c.lembrete_em && c.lembrete_em <= hoje; }).sort(function (a, b) { return a.lembrete_em.localeCompare(b.lembrete_em); });
+    var semProp = contatos.filter(function (c) { return !propostaDoContato(c); });
+    var futuros = contatos.filter(function (c) { return c.lembrete_em && c.lembrete_em > hoje; }).sort(function (a, b) { return a.lembrete_em.localeCompare(b.lembrete_em); });
+    var fecharam = contatos.filter(function (c) { var p = propostaDoContato(c); return p && etapaDe(p) === 'fechada'; });
+    $('ctChamar').textContent = chamar.length; $('ctSemProposta').textContent = semProp.length; $('ctFecharam').textContent = fecharam.length;
+    if (!contatos.length) {
+      var v = el('div', 'vazio'); v.appendChild(el('b', null, 'Nenhum contato ainda'));
+      v.appendChild(el('span', null, 'Anote aqui quem pediu preço: nome, WhatsApp e de onde veio. Daí sai a proposta e o lembrete de chamar de volta.'));
+      box.appendChild(v); return;
+    }
+    function lista(l, f) { var g = el('div', 'pagtos'); l.forEach(function (c) { g.appendChild(f(c)); }); return g; }
+    if (chamar.length) { box.appendChild(secao('Chamar hoje', chamar.length)); box.appendChild(lista(chamar, function (c) { return linhaContato(c, opcoesLembrete(c, hoje)); })); }
+    if (semProp.length) { box.appendChild(secao('Sem proposta ainda', semProp.length)); box.appendChild(lista(semProp, function (c) { return linhaContato(c, { texto: 'Pediu preço em ' + dataCurta(diaLocal(c.criado_em)), acoes: ['proposta'] }); })); }
+    if (futuros.length) { box.appendChild(secao('Próximos lembretes', futuros.length)); box.appendChild(lista(futuros, function (c) { return linhaContato(c, { texto: (c.lembrete_txt || 'Chamar de volta') + ' · ' + dataCurta(c.lembrete_em), acoes: [] }); })); }
+    var det = el('details', 'passados'), sum = el('summary'); det.open = aberto;
+    sum.appendChild(el('span', null, 'Todos os contatos')); sum.appendChild(el('small', null, contatos.length + (contatos.length === 1 ? ' contato' : ' contatos')));
+    det.appendChild(sum); det.appendChild(lista(contatos, function (c) { return linhaContato(c, { texto: statusContato(c), acoes: [] }); })); box.appendChild(det);
+    // de onde vêm os pedidos e quantos viraram cliente
+    var por = {};
+    contatos.forEach(function (c) { var o = por[c.origem || ''] = por[c.origem || ''] || { n: 0, f: 0 }; o.n++; var p = propostaDoContato(c); if (p && etapaDe(p) === 'fechada') o.f++; });
+    var ks = Object.keys(por).sort(function (a, b) { return por[b].n - por[a].n || por[b].f - por[a].f; });
+    var max = Math.max.apply(null, ks.map(function (k) { return por[k].n; })) || 1;
+    box.appendChild(secao('De onde vêm', 'quantos pediram preço e quantos fecharam'));
+    var g = el('div', 'mes-a-mes');
+    ks.forEach(function (k) {
+      var x = por[k], row = el('div', 'linha-mes fixa larga');
+      row.appendChild(el('span', 'm', nomeOrigem(k) || 'Não anotado'));
+      var tr = el('span', 'trilho'), b = el('i'); b.style.width = Math.max(3, Math.round(x.n / max * 100)) + '%'; tr.appendChild(b); row.appendChild(tr);
+      var vv = el('span', 'v', x.n + (x.n === 1 ? ' contato' : ' contatos')); vv.appendChild(el('small', null, x.f + (x.f === 1 ? ' fechou' : ' fecharam') + ' (' + Math.round(x.f / x.n * 100) + '%)')); row.appendChild(vv);
+      g.appendChild(row);
+    });
+    box.appendChild(g);
+  }
+  // relatório "Por que não fechou" (no filtro "Não fechou" de Propostas)
+  function desenharMotivos(box) {
+    var perd = propostas.filter(function (p) { return etapaDe(p) === 'perdida'; });
+    if (!perd.length) return;
+    var por = {};
+    perd.forEach(function (p) { var m = ((p.fechamento && p.fechamento.motivo) || '').trim() || 'Sem motivo anotado'; por[m] = (por[m] || 0) + 1; });
+    var ks = Object.keys(por).sort(function (a, b) { return por[b] - por[a] || a.localeCompare(b); }), max = por[ks[0]];
+    var rel = el('div', 'motivos-rel'), g = el('div', 'mes-a-mes');
+    rel.appendChild(secao('Por que não fechou', perd.length + (perd.length === 1 ? ' proposta' : ' propostas')));
+    ks.forEach(function (k) {
+      var row = el('div', 'linha-mes fixa larga');
+      row.appendChild(el('span', 'm', k));
+      var tr = el('span', 'trilho'), b = el('i'); b.style.width = Math.max(3, Math.round(por[k] / max * 100)) + '%'; tr.appendChild(b); row.appendChild(tr);
+      row.appendChild(el('span', 'v', por[k] + ' (' + Math.round(por[k] / perd.length * 100) + '%)'));
+      g.appendChild(row);
+    });
+    rel.appendChild(g); box.appendChild(rel);
+  }
+  // folha do contato
+  ORIGENS.forEach(function (o) {
+    var b = botao(null, o[1]); b.setAttribute('data-v', o[0]); b.setAttribute('aria-pressed', 'false');
+    b.onclick = function () { ctOrigem = ctOrigem === o[0] ? '' : o[0]; pintarOrigem(); };
+    $('ctOrigens').appendChild(b);
+  });
+  function pintarOrigem() { $('ctOrigens').querySelectorAll('button').forEach(function (b) { b.setAttribute('aria-pressed', String(b.getAttribute('data-v') === ctOrigem)); }); }
+  [['Hoje', 0], ['Amanhã', 1], ['Em 3 dias', 3], ['Em 1 semana', 7], ['Sem lembrete', null]].forEach(function (a) {
+    var b = botao(null, a[0]);
+    b.onclick = function () {
+      $('ctLembEm').value = a[1] == null ? '' : hojeMais(a[1]);
+      if (a[1] == null) $('ctLembTxt').value = '';
+      else if (!$('ctLembTxt').value.trim()) $('ctLembTxt').value = ctPropostaId ? 'Perguntar se viu a proposta' : 'Mandar a proposta';
+    };
+    $('ctAtalhos').appendChild(b);
+  });
+  function abrirContato(c, novo) {
+    contatoEd = c || null; var x = c || novo || {};
+    $('ctTit').textContent = c ? 'Contato' : 'Novo contato';
+    $('ctNome').value = x.nome || ''; $('ctWhats').value = mascaraWhats(x.whatsapp || '');
+    ctOrigem = x.origem || ''; pintarOrigem(); ctPropostaId = x.proposta_id || null;
+    $('ctData').value = x.data_evento || ''; $('ctLembEm').value = x.lembrete_em || ''; $('ctLembTxt').value = x.lembrete_txt || ''; $('ctObs').value = x.obs || '';
+    $('ctErro').hidden = true; $('ctNome').classList.remove('falta'); $('ctWhats').classList.remove('falta');
+    $('ctExcluir').hidden = !c; $('ctAcoes').hidden = !c;
+    if (c) { whatsLink($('ctWhatsBt'), c.whatsapp, mensagemContato(c), c.nome); $('ctProposta').textContent = propostaDoContato(c) ? 'Abrir a proposta' : 'Fazer proposta'; }
+    abrirFolha('folhaContato');
+  }
+  $('btNovoContato').addEventListener('click', function () { abrirContato(null); });
+  $('ctSalvar').addEventListener('click', function () {
+    var corpo = { nome: $('ctNome').value.trim(), whatsapp: $('ctWhats').value, origem: ctOrigem, data_evento: $('ctData').value, lembrete_em: $('ctLembEm').value,
+      lembrete_txt: $('ctLembTxt').value.trim(), obs: $('ctObs').value.trim(), proposta_id: ctPropostaId };
+    if (!corpo.nome) { $('ctNome').classList.add('falta'); $('ctNome').focus(); return erroNaFolha('ctErro', 'Coloque o nome.'); }
+    var dig = corpo.whatsapp.replace(/\D/g, '').replace(/^55(?=\d{10,11}$)/, '');
+    if (dig && dig.length !== 10 && dig.length !== 11) { $('ctWhats').classList.add('falta'); $('ctWhats').focus(); return erroNaFolha('ctErro', 'Coloque o WhatsApp com DDD, por exemplo (11) 99999-0000.'); }
+    var bt = this, solta = ocupado(bt, 'Salvando…'), novo = !contatoEd;
+    api(novo ? 'POST' : 'PUT', '/admin/contatos' + (novo ? '' : '/' + contatoEd.id), corpo).then(function (c) {
+      solta(); atualizarContato(c); fecharFolhas(); desenharTudo();
+      if (!$('vEditor').hidden) pintarSituacao();
+      toast(novo ? 'Contato salvo' : 'Contato atualizado');
+    }, function (e) { solta(); if (e && e.message === '401') return; erroNaFolha('ctErro', e.message || 'Algo deu errado.'); });
+  });
+  $('ctNome').addEventListener('input', function () { this.classList.remove('falta'); $('ctErro').hidden = true; });
+  $('ctWhats').addEventListener('input', function () { this.classList.remove('falta'); $('ctErro').hidden = true; });
+  $('ctExcluir').addEventListener('click', function () {
+    if (!contatoEd || !confirm('Excluir este contato?\n\nO nome, o WhatsApp e as anotações somem. A proposta (se tiver) continua.')) return;
+    var c = contatoEd, solta = ocupado(this, 'Excluindo…');
+    api('DELETE', '/admin/contatos/' + c.id).then(function () {
+      solta(); contatos = contatos.filter(function (x) { return x.id !== c.id; }); fecharFolhas(); desenharTudo();
+      if (!$('vEditor').hidden) pintarSituacao();
+      toast('Contato excluído');
+    }, function (e) { solta(); falhou(e); });
+  });
+  $('ctProposta').addEventListener('click', function () {
+    if (!contatoEd) return;
+    var p = propostaDoContato(contatoEd);
+    if (p) { fecharFolhas(); abrirEditor(p); } else novaPropostaDeContato(contatoEd);
+  });
+  function lembreteFeito(c, bt) {
+    var solta = ocupado(bt);
+    api('PUT', '/admin/contatos/' + c.id, Object.assign({}, c, { lembrete_em: '', lembrete_txt: '' })).then(function (nc) {
+      atualizarContato(nc); desenharTudo(); toast('Lembrete feito');
+    }, function (e) { solta(); falhou(e); });
+  }
+  // "Fazer proposta" a partir do contato: a proposta nasce com o nome e a data dele e fica ligada ao contato
+  function novaPropostaDeContato(c) {
+    fecharFolhas();
+    carregarModelo().then(function (m) {
+      editando = { novo: true }; sujo = false; vincularContato = c.id;
+      var d = JSON.parse(JSON.stringify(m)); d.cliente = c.nome || ''; d.data = c.data_evento || ''; d.local = ''; d.mensagem = '';
+      d.validade = hojeMais(Number(m.validade_dias) || 30);
+      preencher(d);
+      entrarEditor('Nova proposta', 'Salvar e gerar link', 'proposta', false);
+    }).catch(falhou);
+  }
+
+  // ---------- agenda: o seu mês ----------
+  function mesAtual() { var h = new Date(); return { y: h.getFullYear(), m: h.getMonth() }; }
+  function irParaMes(y, m) { var d = new Date(y, m, 1); mesVisto = { y: d.getFullYear(), m: d.getMonth() }; diaSel = ''; desenharAgenda(); }
+  $('mesAnt').addEventListener('click', function () { irParaMes(mesVisto.y, mesVisto.m - 1); });
+  $('mesProx').addEventListener('click', function () { irParaMes(mesVisto.y, mesVisto.m + 1); });
+  $('mesHoje').addEventListener('click', function () { var a = mesAtual(); irParaMes(a.y, a.m); });
+  // índice data → propostas com data (fechadas e em aberto; "não fechou" não ocupa a agenda)
+  function porData() {
+    var idx = {};
+    propostas.forEach(function (p) { var d = p.dados && p.dados.data; if (d && etapaDe(p) !== 'perdida') (idx[d] = idx[d] || []).push(p); });
+    return idx;
+  }
+  // números de um mês: casamentos fechados, propostas aguardando e sábados (de hoje em diante) com vaga e livres.
+  // Cabem até POR_DIA casamentos por dia: o sábado só fica sem vaga quando chega nesse número.
+  function resumoMes(y, m, idx, hoje) {
+    var chave = chaveMes(y, m), r = { fechados: 0, valor: 0, abertas: 0, sabVaga: 0, sabLivres: 0, sabFuturos: 0, passado: chave < hoje.slice(0, 7) };
+    for (var dia = 1, ultimo = new Date(y, m + 1, 0).getDate(); dia <= ultimo; dia++) {
+      var iso = chave + '-' + dois(dia), lista = idx[iso] || [], noDia = 0;
+      lista.forEach(function (p) { if (etapaDe(p) === 'fechada') { r.fechados++; r.valor += valorFechado(p); noDia++; } else r.abertas++; });
+      if (iso >= hoje && new Date(y, m, dia).getDay() === 6) { r.sabFuturos++; if (noDia < POR_DIA) r.sabVaga++; if (!noDia) r.sabLivres++; }
+    }
+    return r;
+  }
+  function desenharAgenda() {
+    if (!mesVisto) mesVisto = mesAtual();
+    var hoje = hojeISO(), idx = porData(), y = mesVisto.y, m = mesVisto.m, chave = chaveMes(y, m), r = resumoMes(y, m, idx, hoje), atual = mesAtual();
+    $('mesTitulo').textContent = nomeMes(y, m);
+    $('mesHoje').hidden = y === atual.y && m === atual.m;
+    $('mCasamentos').textContent = r.fechados;
+    $('mCasamentosRot').textContent = r.fechados ? 'Eventos · ' + dinheiro(r.valor) : 'Eventos fechados';
+    $('mLivres').textContent = r.passado ? '–' : r.sabVaga;
+    $('mLivresRot').textContent = 'Sábados com vaga' + (!r.passado && r.sabLivres !== r.sabVaga ? ' · ' + r.sabLivres + (r.sabLivres === 1 ? ' livre' : ' livres') : '');
+    $('mAguardando').textContent = r.abertas;
+
+    // calendário
+    var cal = $('cal'); limparNo(cal);
+    var cab = el('div', 'cal-sem'); ['D', 'S', 'T', 'Q', 'Q', 'S', 'S'].forEach(function (x) { cab.appendChild(el('span', null, x)); }); cal.appendChild(cab);
+    var grade = el('div', 'cal-grade');
+    for (var i = 0, primeiro = new Date(y, m, 1).getDay(); i < primeiro; i++) grade.appendChild(el('span', 'dia vazio'));
+    for (var dia = 1, ultimo = new Date(y, m + 1, 0).getDate(); dia <= ultimo; dia++) {
+      (function (dia) {
+        var iso = chave + '-' + dois(dia), lista = idx[iso] || [];
+        var nf = lista.filter(function (p) { return etapaDe(p) === 'fechada'; }).length, ab = lista.some(function (p) { return etapaDe(p) !== 'fechada'; });
+        var cls = 'dia' + (iso < hoje ? ' passado' : '') + (iso === hoje ? ' hoje' : '') + (new Date(y, m, dia).getDay() === 6 ? ' sab' : '') + (nf ? ' fechado' : '') + (nf >= POR_DIA ? ' cheio' : '') + (ab ? ' aberto' : '');
+        var c = lista.length ? botao(cls) : el('span', cls);
+        c.appendChild(el('span', 'n', String(dia)));
+        var pts = el('span', 'pontos');
+        for (var q = 0; q < Math.min(nf, POR_DIA); q++) pts.appendChild(el('i', 'f'));
+        if (ab && nf < POR_DIA) pts.appendChild(el('i', 'a'));
+        c.appendChild(pts);
+        if (lista.length) {
+          c.setAttribute('aria-pressed', String(diaSel === iso));
+          c.setAttribute('aria-label', 'Dia ' + dia + ': ' + lista.map(function (p) { return p.dados.cliente || 'sem nome'; }).join(', '));
+          c.onclick = function () { diaSel = diaSel === iso ? '' : iso; desenharAgenda(); };
+        }
+        grade.appendChild(c);
+      })(dia);
+    }
+    cal.appendChild(grade);
+
+    // vendas do mês: pelo dia em que você marcou "Fechou?" ou "Não fechou", e pelas propostas criadas
+    var fechouNoMes = propostas.filter(function (p) { return etapaDe(p) === 'fechada' && mesDe(p.fechado_em) === chave; });
+    var naoFechou = propostas.filter(function (p) { return etapaDe(p) === 'perdida' && mesDe(p.fechado_em) === chave; }).length;
+    var enviadas = propostas.filter(function (p) { return mesDe(p.criado_em) === chave; }).length;
+    var vendas = $('mesVendas'); limparNo(vendas);
+    var forte = function (x) { vendas.appendChild(el('b', null, x)); }, texto = function (x) { vendas.appendChild(document.createTextNode(x)); };
+    texto(nomeMes(y, m) + ': ');
+    forte(String(enviadas)); texto(enviadas === 1 ? ' proposta enviada' : ' propostas enviadas');
+    texto(' · ');
+    if (fechouNoMes.length) { forte(String(fechouNoMes.length)); texto(fechouNoMes.length === 1 ? ' fechada (' : ' fechadas ('); forte(dinheiro(somaFechado(fechouNoMes))); texto(')'); }
+    else texto(r.passado ? 'nenhuma fechada' : 'nenhuma fechada ainda');
+    if (naoFechou) { texto(' · '); forte(String(naoFechou)); texto(' não ' + (naoFechou === 1 ? 'fechou' : 'fecharam')); }
+    texto('.');
+
+    // o que tem no mês (ou só no dia tocado)
+    var tit = $('mesListaTit'); limparNo(tit);
+    tit.appendChild(document.createTextNode(diaSel ? 'Dia ' + dataDe(diaSel).getDate() + ' · ' + diaSemana(diaSel) : 'Neste mês'));
+    if (diaSel) { var todo = botao('texto-link', 'ver o mês todo'); todo.onclick = function () { diaSel = ''; desenharAgenda(); }; tit.appendChild(todo); }
+    var lista = $('mesLista'); limparNo(lista);
+    var datas = Object.keys(idx).filter(function (d) { return d.slice(0, 7) === chave && (!diaSel || d === diaSel); }).sort();
+    if (!datas.length) lista.appendChild(el('p', 'nada', r.passado ? 'Nenhum evento neste mês.' : 'Nenhum evento nem proposta com data neste mês.'));
+    datas.forEach(function (d) {
+      idx[d].slice().sort(function (a, b) { return (a.dados.hora || '99').localeCompare(b.dados.hora || '99') || (etapaDe(a) === 'fechada' ? 0 : 1) - (etapaDe(b) === 'fechada' ? 0 : 1); }).forEach(function (p) { lista.appendChild(linhaEvento(p)); });
+    });
+
+    // próximos 12 meses: cheio ou com vaga, de relance
+    var ms = $('meses'); limparNo(ms);
+    for (var k = 0; k < 12; k++) {
+      (function (k) {
+        var dt = new Date(atual.y, atual.m + k, 1), yy = dt.getFullYear(), mm = dt.getMonth(), rr = resumoMes(yy, mm, idx, hoje);
+        var chip = botao('mes-chip' + (rr.sabFuturos && !rr.sabVaga ? ' cheio' : ''));
+        chip.setAttribute('aria-pressed', String(yy === y && mm === m));
+        chip.appendChild(el('b', null, nomeMes(yy, mm, true) + ((k === 0 || mm === 0) ? ' ' + yy : '')));
+        chip.appendChild(el('span', null, rr.fechados + (rr.fechados === 1 ? ' evento' : ' eventos')));
+        chip.appendChild(el('span', 'livre', rr.sabVaga ? rr.sabVaga + (rr.sabVaga === 1 ? ' sábado com vaga' : ' sábados com vaga') : 'sábados cheios'));
+        if (rr.abertas) chip.appendChild(el('span', 'ab', rr.abertas + ' aguardando'));
+        chip.onclick = function () { irParaMes(yy, mm); };
+        ms.appendChild(chip);
+      })(k);
+    }
+  }
+  function linhaEvento(p) {
+    var d = p.dados || {}, et = etapaDe(p), row = botao('evt ' + et);
+    row.onclick = function () { abrirEditor(p); };
+    var dd = el('span', 'd'); dd.appendChild(el('b', null, String(dataDe(d.data).getDate()))); dd.appendChild(el('small', null, diaSemana(d.data))); if (d.hora) dd.appendChild(el('small', 'h', horaTxt(d.hora))); row.appendChild(dd);
+    var tx = el('span', 't'); tx.appendChild(el('b', null, d.cliente || 'Sem nome'));
+    tx.appendChild(el('span', null, et === 'fechada' ? ['Fechado'].concat(rotulosFechamento(p)).join(' · ') : 'Aguardando resposta' + (p.views ? ' · aberta ' + p.views + (p.views === 1 ? ' vez' : ' vezes') : ' · ainda não abriu')));
+    if (d.local) tx.appendChild(el('span', null, d.local));
+    row.appendChild(tx);
+    row.appendChild(el('span', 'v', et === 'fechada' ? dinheiro(valorFechado(p)) : (faixa(d) || '')));
+    return row;
+  }
+
+  // o que já existe numa data, fora a própria proposta: casamentos fechados e propostas aguardando
+  function naData(iso, menosId) {
+    var r = { fechadas: [], abertas: [] };
+    if (!iso) return r;
+    propostas.forEach(function (p) {
+      if (p.id === menosId || !p.dados || p.dados.data !== iso) return;
+      var e = etapaDe(p);
+      var nome = (p.dados.cliente || 'sem nome') + (p.dados.hora ? ', às ' + horaTxt(p.dados.hora) : '');
+      if (e === 'fechada') r.fechadas.push(nome); else if (e === 'aberta') r.abertas.push(nome);
+    });
+    return r;
+  }
+  function textoData(r) {
+    var partes = [], n = r.fechadas.length;
+    if (n >= POR_DIA) partes.push('Este dia já está cheio: ' + n + ' eventos fechados (' + r.fechadas.join(', ') + ').');
+    else if (n) partes.push('Neste dia você já tem 1 evento fechado (' + r.fechadas[0] + '). Ainda cabe mais um, se os horários permitirem.');
+    if (r.abertas.length) partes.push((r.fechadas.length ? 'E ' : 'Neste dia ') + (r.abertas.length === 1 ? 'há 1 proposta aguardando resposta' : 'há ' + r.abertas.length + ' propostas aguardando resposta') + ' (' + r.abertas.join(', ') + ').');
+    return partes.join(' ');
+  }
+  function avisarData() {
+    var txt = textoData(naData($('fData').value, editando && editando.id));
+    $('fDataAviso').textContent = txt; $('fDataAviso').hidden = !txt;
+  }
+  $('fData').addEventListener('change', avisarData);
+  $('fData').addEventListener('input', avisarData);
+
+  // ---------- propostas: filtros e cartões ----------
+  function pintarFiltro() {
+    document.querySelectorAll('#filtros [data-filtro]').forEach(function (b) { b.setAttribute('aria-pressed', String(b.getAttribute('data-filtro') === filtro)); });
+  }
+  function definirFiltro(f) { filtro = f; pintarFiltro(); desenharLista(); }
+  // ao voltar do editor, a proposta em que você mexeu tem que estar à vista: fechada vive em "Clientes"; nova ou mexida, em "Propostas"
+  function filtroPara(p) {
+    if (!(p && p.id)) return;
+    var e = etapaDe(p);
+    if (e === 'fechada') { aba = 'clientes'; return; }
+    if (p._nova || aba !== 'agenda') { aba = 'propostas'; if (!noFiltro(p)) filtro = e === 'perdida' ? 'perdidas' : 'abertas'; }
+    delete p._nova;
+  }
+  document.querySelectorAll('#filtros [data-filtro]').forEach(function (b) {
+    b.addEventListener('click', function () { definirFiltro(b.getAttribute('data-filtro')); });
+  });
+  function noFiltro(p) {
+    var e = etapaDe(p);
+    return filtro === 'todas' || (filtro === 'abertas' && e === 'aberta') || (filtro === 'perdidas' && e === 'perdida');
+  }
+  function desenharLista() {
+    var box = $('lista'), visiveis = propostas.filter(noFiltro);
+    limparNo(box);
+    if (filtro === 'perdidas') desenharMotivos(box);
+    if (!visiveis.length) {
+      var tv = VAZIO[propostas.length ? filtro : 'nada'] || VAZIO.nada, v = el('div', 'vazio');
+      v.appendChild(el('b', null, tv[0])); v.appendChild(el('span', null, tv[1]));
+      box.appendChild(v); return;
+    }
+    visiveis.forEach(function (p) { box.appendChild(cartao(p)); });
+  }
+  function cartao(p) {
+    var d = p.dados || {}, et = etapaDe(p), c = el('article', 'pcard ' + et);
+    var abrir = botao('abrir'); abrir.title = 'Abrir a proposta';
+    abrir.onclick = function () { abrirEditor(p); };
+    abrir.appendChild(el('span', 'nome', d.cliente || 'Sem nome'));
+    abrir.appendChild(el('span', 'sub', [d.data && dataCurta(d.data), d.hora && horaTxt(d.hora), d.local].filter(Boolean).join(' · ') || 'Sem data'));
+    if (et === 'fechada') {
+      abrir.appendChild(el('span', 'valor', dinheiro(valorFechado(p))));
+      abrir.appendChild(el('span', 'selo fechada', ['Fechada'].concat(rotulosFechamento(p)).join(' · ')));
+    } else {
+      var fxa = faixa(d); if (fxa) abrir.appendChild(el('span', 'valor', fxa));
+      if (et === 'perdida') {
+        var motivo = p.fechamento && p.fechamento.motivo;
+        abrir.appendChild(el('span', 'selo perdida', 'Não fechou' + (motivo ? ' · ' + motivo : '')));
+      } else if (p.views) {
+        var vs = el('span', 'vista sim'); vs.appendChild(el('i', null, '● '));
+        vs.appendChild(document.createTextNode('Aberta ' + p.views + (p.views === 1 ? ' vez' : ' vezes') + (p.ultima_vista ? ' · última ' + quando(p.ultima_vista) : '')));
+        abrir.appendChild(vs);
+      } else abrir.appendChild(el('span', 'vista', 'Ainda não aberta pelo cliente'));
+    }
+    c.appendChild(abrir);
+    var ac = el('div', 'acoes' + (et === 'aberta' ? ' tres' : ''));
+    var bCp = botao('b b-pq b-ouro', 'Copiar link'); bCp.onclick = function () { copiarLink(p); };
+    var bVer = el('a', 'b b-pq', 'Ver proposta'); bVer.href = linkDe(p); bVer.target = '_blank'; bVer.rel = 'noopener';
+    ac.appendChild(bCp); ac.appendChild(bVer);
+    if (et === 'aberta') { var bF = botao('b b-pq b-verde', 'Fechou?'); bF.onclick = function () { abrirFechou(p); }; ac.appendChild(bF); }
+    c.appendChild(ac);
+    return c;
+  }
+  function atualizarNaLista(np) {
+    var i = propostas.findIndex(function (x) { return x.id === np.id; });
+    if (i >= 0) propostas[i] = np; else propostas.unshift(np);
+  }
+  // voltou para a aba depois de um tempo: atualiza quem abriu a proposta
+  document.addEventListener('visibilitychange', function () {
+    if (!document.hidden && logado() && !$('vLista').hidden && Date.now() - ultimaCarga > 30000) carregarLista();
+  });
+
+  // ---------- copiar o link (você cola na conversa do WhatsApp) ----------
+  function copiarLink(p) {
+    if (p.status !== 'publicada') {   // rascunho: publica antes de mandar
+      return api('PUT', '/admin/propostas/' + p.id, { dados: p.dados, status: 'publicada' }).then(function (np) {
+        atualizarNaLista(np); if (editando && editando.id === np.id) editando = np; copiarTexto(linkDe(np));
+      }).catch(falhou);
+    }
+    copiarTexto(linkDe(p));
+  }
+  function copiarTexto(txt) {
+    var ok = function () { toast(ehVisitante() ? 'Link copiado. No modo visitante, ele só abre neste aparelho' : 'Link copiado — é só colar no WhatsApp'); };
+    function reserva() {
+      var ta = el('textarea'), feito = false;
+      ta.value = txt; ta.setAttribute('readonly', ''); ta.style.cssText = 'position:fixed;top:0;left:0;width:1px;height:1px;opacity:0;font-size:16px';
+      document.body.appendChild(ta); ta.focus(); ta.select();
+      try { ta.setSelectionRange(0, txt.length); feito = document.execCommand('copy'); } catch (e) {}
+      document.body.removeChild(ta);
+      if (feito) ok(); else window.prompt('Copie o link:', txt);
+    }
+    if (navigator.clipboard && window.isSecureContext) navigator.clipboard.writeText(txt).then(ok, reserva);
+    else reserva();
+  }
+  document.querySelectorAll('[data-acao="copiar"]').forEach(function (b) {
+    b.addEventListener('click', function () { if (editando && editando.id) copiarLink(editando); });
+  });
+
+  // ---------- editor: monta as 3 opções uma vez ----------
+  var C = {};
+  function caixaDinheiro(rotulo) {
+    var cx = el('div', 'dinheiro'), inp = el('input');
+    cx.appendChild(el('span', null, 'R$'));
+    inp.type = 'text'; inp.inputMode = 'decimal'; inp.placeholder = '0'; inp.setAttribute('aria-label', rotulo); inp.setAttribute('enterkeyhint', 'done');
+    inp.addEventListener('blur', function () { var x = parseValor(inp.value); inp.value = x != null ? numero(x) : ''; });
+    inp.addEventListener('input', function () { corrigir(cx); });
+    cx.appendChild(inp);
+    return { caixa: cx, input: inp };
+  }
+  function campo(rotulo, filho, nota) {
+    var l = el('label', 'campo'); l.appendChild(el('span', null, rotulo)); l.appendChild(filho);
+    if (nota) l.appendChild(el('small', null, nota));
+    return l;
+  }
+  OPCOES.forEach(function (o) {
+    var c = C[o.k] = {};
+    // passo 2: liga/desliga, valores e "Sugerir esta"
+    c.bloco = el('div', 'opc'); c.bloco.setAttribute('data-k', o.k);
+    // posição na proposta + setas para trocar
+    var cab = el('div', 'opc-cab'), mover = el('div', 'mover');
+    c.pos = el('span', 'opc-pos');
+    c.sobe = botao(null, '↑'); c.sobe.setAttribute('aria-label', 'Subir a opção ' + o.rot); c.sobe.title = 'Subir';
+    c.desce = botao(null, '↓'); c.desce.setAttribute('aria-label', 'Descer a opção ' + o.rot); c.desce.title = 'Descer';
+    c.sobe.addEventListener('click', function () { moverOpcao(o.k, -1); });
+    c.desce.addEventListener('click', function () { moverOpcao(o.k, 1); });
+    mover.appendChild(c.sobe); mover.appendChild(c.desce);
+    cab.appendChild(c.pos); cab.appendChild(mover);
+    var topo = el('label', 'opc-topo'), tit = el('span', 'opc-tit');
+    tit.appendChild(el('b', null, o.rot)); c.titulo = el('span'); tit.appendChild(c.titulo);
+    c.on = el('input', 'chave'); c.on.type = 'checkbox'; c.on.setAttribute('role', 'switch'); c.on.setAttribute('aria-label', 'Oferecer a opção ' + o.rot);
+    topo.appendChild(tit); topo.appendChild(c.on);
+    var corpo = el('div', 'opc-corpo'), duas = el('div', 'duas precos');
+    // junto (um valor: só o pacote B) · separado (os dois valores) · só o pacote A. Os nomes vêm dos rótulos da proposta (aplicarRotulos).
+    var lModo = el('div', 'campo'), modo = el('div', 'modo');
+    modo.setAttribute('role', 'group'); modo.setAttribute('aria-label', 'Como mostrar o valor da opção ' + o.rot);
+    c.modos = {};
+    MODOS.forEach(function (m) {
+      var b = botao(null, m.rot); b.setAttribute('aria-pressed', 'false');
+      b.addEventListener('click', function () { if (c.modo !== m.k) { definirModo(o.k, m.k); sujo = true; } });
+      c.modos[m.k] = b; modo.appendChild(b);
+    });
+    c.modoTxt = el('small');
+    lModo.appendChild(el('span', null, 'Como mostrar o valor')); lModo.appendChild(modo); lModo.appendChild(c.modoTxt);
+    c.cer = caixaDinheiro('Primeiro valor da opção ' + o.rot); c.rec = caixaDinheiro('Segundo valor da opção ' + o.rot);
+    // um valor basta: ao digitar um, as marcas de "falta" somem de todas
+    var semFaltas = function () { OPCOES.forEach(function (x) { corrigir(C[x.k].cer.caixa); corrigir(C[x.k].rec.caixa); }); };
+    c.cer.input.addEventListener('input', function () { if (temValor(parseValor(c.cer.input.value))) semFaltas(); });
+    c.rec.input.addEventListener('input', function () { if (temValor(parseValor(c.rec.input.value))) semFaltas(); });
+    var lCer = campo(ROTULOS_PADRAO.pacote_a, c.cer.caixa); lCer.classList.add('cer');
+    var lRec = campo(ROTULOS_PADRAO.pacote_b, c.rec.caixa); lRec.classList.add('rec');
+    c.lCer = lCer; c.lRec = lRec;
+    duas.appendChild(lCer); duas.appendChild(lRec);
+    c.sug = botao('sugerir', 'Sugerir esta'); c.sug.setAttribute('aria-pressed', 'false');
+    corpo.appendChild(lModo); corpo.appendChild(duas); corpo.appendChild(c.sug);
+    c.bloco.appendChild(cab); c.bloco.appendChild(topo); c.bloco.appendChild(corpo);
+    $('fOpcoes').appendChild(c.bloco);
+    c.on.addEventListener('change', function () {
+      c.bloco.classList.toggle('off', !c.on.checked);
+      if (!c.on.checked) { c.cer.caixa.classList.remove('falta'); c.rec.caixa.classList.remove('falta'); if (sugestao === o.k) definirSugestao(''); }   // desligou a sugerida: limpa a sugestão
+      pintarPosicoes();
+      sujo = true;
+    });
+    c.sug.addEventListener('click', function () { definirSugestao(sugestao === o.k ? '' : o.k); sujo = true; });
+
+    // "Mais opções": nome, clima e itens
+    var g = c.grupo = el('div', 'grupo'), gt = el('b', null, 'Opção ' + o.rot.toLowerCase());
+    c.nome = el('input'); c.nome.type = 'text'; c.nome.maxLength = 60; c.nome.setAttribute('enterkeyhint', 'done');
+    c.clima = el('input'); c.clima.type = 'text'; c.clima.maxLength = 120; c.clima.setAttribute('enterkeyhint', 'done');
+    c.itens = el('textarea'); c.itens.maxLength = 600; c.itens.rows = 4;
+    g.appendChild(gt); g.appendChild(campo('Nome', c.nome)); g.appendChild(campo('Clima (frase curta)', c.clima)); g.appendChild(campo('O que tem', c.itens, 'Um por linha.'));
+    $('fTextos').appendChild(g);
+    c.nome.addEventListener('input', atualizarTitulos);
+  });
+  function atualizarTitulos() { OPCOES.forEach(function (o) { var n = C[o.k].nome.value.trim(); C[o.k].titulo.textContent = n ? ' · ' + n : ''; }); }
+  function definirSugestao(k) {   // só uma por vez
+    sugestao = k || '';
+    OPCOES.forEach(function (o) {
+      var sim = sugestao === o.k;
+      C[o.k].sug.setAttribute('aria-pressed', String(sim));
+      C[o.k].sug.textContent = sim ? '★ Minha sugestão' : 'Sugerir esta';
+    });
+  }
+  // os rótulos digitados em "Na página da proposta" valem para o formulário inteiro: nomes dos campos de valor,
+  // botões de modo e a frase de cada modo
+  function rotAtual() { return limparRotulos({ pacote_a: $('fRotA').value, pacote_b: $('fRotB').value, nota_b: $('fRotNota').value }); }
+  function aplicarRotulos() {
+    var r = rotAtual(), ms = MODOS_DE(r);
+    OPCOES.forEach(function (o) {
+      var c = C[o.k]; if (!c || !c.lCer) return;
+      c.lCer.querySelector('span').textContent = r.pacote_a;
+      c.lRec.querySelector('span').textContent = r.pacote_b;
+      ms.forEach(function (m) { c.modos[m.k].textContent = m.rot; if (c.modo === m.k) c.modoTxt.textContent = m.txt; });
+    });
+  }
+  ['fRotA', 'fRotB', 'fRotNota'].forEach(function (id) { $(id).addEventListener('input', function () { aplicarRotulos(); sujo = true; }); });
+  function definirModo(k, m) {
+    var c = C[k]; c.modo = m;
+    c.bloco.setAttribute('data-ver', m);
+    var ms = MODOS_DE(rotAtual());
+    ms.forEach(function (x) { c.modos[x.k].setAttribute('aria-pressed', String(x.k === m)); c.modos[x.k].textContent = x.rot; if (x.k === m) c.modoTxt.textContent = x.txt; });
+    if (m === 'junto') c.cer.caixa.classList.remove('falta');        // campo escondido não fica marcado
+    if (m === 'cerimonia') c.rec.caixa.classList.remove('falta');
+  }
+  // a ordem do passo 2 é a ordem da página da proposta
+  var ordemOps = OPCOES.map(function (o) { return o.k; });
+  function pintarPosicoes() {
+    var n = 0;
+    ordemOps.forEach(function (k, i) {
+      var c = C[k];
+      c.pos.textContent = c.on.checked ? (++n) + 'ª na proposta' : 'Fora da proposta';
+      c.sobe.disabled = i === 0; c.desce.disabled = i === ordemOps.length - 1;
+    });
+  }
+  function pintarOrdem() {
+    ordemOps.forEach(function (k) { $('fOpcoes').appendChild(C[k].bloco); $('fTextos').appendChild(C[k].grupo); });
+    pintarPosicoes();
+  }
+  function moverOpcao(k, passo) {
+    var i = ordemOps.indexOf(k), j = i + passo;
+    if (j < 0 || j >= ordemOps.length) return;
+    ordemOps[i] = ordemOps[j]; ordemOps[j] = k;
+    pintarOrdem(); sujo = true;
+    var c = C[k], bt = passo < 0 ? c.sobe : c.desce;
+    (bt.disabled ? (passo < 0 ? c.desce : c.sobe) : bt).focus();   // o foco acompanha a opção que mudou de lugar
+    c.bloco.classList.remove('movida'); void c.bloco.offsetWidth; c.bloco.classList.add('movida');
+  }
+  OPCOES.forEach(function (o) { definirModo(o.k, 'separado'); });
+  pintarPosicoes();
+
+  // adicionais: nome + preço opcional
+  function linhaAdicional(a) {
+    a = a || {};
+    var r = el('div', 'adic-linha'); r._descricao = a.descricao || '';
+    var nome = el('textarea', 'x-nome'); nome.rows = 1; nome.maxLength = 120; nome.placeholder = 'Nome'; nome.value = a.nome || ''; nome.setAttribute('aria-label', 'Nome do adicional'); nome.setAttribute('enterkeyhint', 'done');
+    nome.addEventListener('input', function () {
+      if (/[\r\n]/.test(nome.value)) nome.value = nome.value.replace(/\s*[\r\n]+\s*/g, ' ');
+      corrigir(nome); crescer(nome);
+    });
+    var cx = caixaDinheiro('Preço do adicional (opcional)'); cx.input.classList.add('x-valor'); cx.input.placeholder = '—';
+    cx.input.value = a.valor != null ? numero(a.valor) : '';
+    var rm = botao('b remover perigo', '×'); rm.setAttribute('aria-label', 'Remover adicional'); rm.title = 'Remover';
+    rm.onclick = function () { r.parentNode.removeChild(r); sujo = true; };
+    r.appendChild(nome); r.appendChild(cx.caixa); r.appendChild(rm);
+    return r;
+  }
+  // o campo do nome cresce para mostrar o texto inteiro (só mede quando "Mais opções" está aberto)
+  function crescer(ta) { ta.style.height = 'auto'; ta.style.height = Math.max(52, ta.scrollHeight + 2) + 'px'; }
+  function crescerTodos() { Array.prototype.forEach.call(document.querySelectorAll('#fAdicionais .x-nome'), crescer); }
+  $('maisOpcoes').addEventListener('toggle', crescerTodos);
+  window.addEventListener('resize', crescerTodos);
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(crescerTodos);
+  $('btAddAdicional').addEventListener('click', function () {
+    if ($('fAdicionais').children.length >= 20) return toast('São no máximo 20 adicionais');
+    var r = linhaAdicional(); $('fAdicionais').appendChild(r); r.querySelector('.x-nome').focus(); sujo = true;
+  });
+  function lerAdicionais() {
+    return Array.prototype.map.call($('fAdicionais').children, function (r) {
+      return { nome: r.querySelector('.x-nome').value.trim(), descricao: r._descricao || '', valor: parseValor(r.querySelector('.x-valor').value), _linha: r };
+    }).filter(function (x) { return x.nome || x.valor != null; });
+  }
+
+  function preencher(d) {
+    d = d || {};
+    var ops = d.opcoes || {}, s = d.secoes || {};
+    $('fCliente').value = d.cliente || ''; $('fCliente').classList.remove('falta');
+    $('fData').value = d.data || ''; $('fHora').value = d.hora || ''; $('fLocal').value = d.local || ''; $('fMensagem').value = d.mensagem || '';
+    avisarData();
+    OPCOES.forEach(function (o) {
+      var x = ops[o.k] || {}, c = C[o.k];
+      c.on.checked = !!x.on; c.bloco.classList.toggle('off', !x.on);
+      c.cer.input.value = x.cerimonia != null ? numero(x.cerimonia) : ''; c.cer.caixa.classList.remove('falta');
+      c.rec.input.value = x.cerimonia_recepcao != null ? numero(x.cerimonia_recepcao) : ''; c.rec.caixa.classList.remove('falta');
+      c.nome.value = x.nome || ''; c.clima.value = x.clima || ''; c.itens.value = x.itens || '';
+      definirModo(o.k, modoDe(d, x));
+    });
+    ordemOps = ordemDe(d); pintarOrdem();
+    definirSugestao(d.sugestao && ops[d.sugestao] && ops[d.sugestao].on ? d.sugestao : '');
+    atualizarTitulos();
+    $('fInclui').value = d.inclui || '';
+    limparNo($('fAdicionais'));
+    (Array.isArray(d.adicionais) ? d.adicionais : []).forEach(function (a) { $('fAdicionais').appendChild(linhaAdicional(a)); });
+    crescerTodos();
+    $('fCondicoes').value = d.condicoes || ''; $('fValidade').value = d.validade || ''; $('mDias').value = d.validade_dias || 30;
+    $('fObs').value = d.observacoes || ''; $('fTipo').value = d.tipo || '';
+    var rr = limparRotulos(d.rotulos); $('fRotA').value = rr.pacote_a; $('fRotB').value = rr.pacote_b; $('fRotNota').value = rr.nota_b;
+    aplicarRotulos();
+    $('sVideos').checked = s.videos !== false; $('sDepoimentos').checked = s.depoimentos !== false;
+  }
+
+  // monta os dados no formato que a API e a página da proposta usam
+  function lerForm() {
+    var opcoes = {};
+    OPCOES.forEach(function (o) {
+      var c = C[o.k];
+      opcoes[o.k] = { on: c.on.checked, nome: c.nome.value.trim(), clima: c.clima.value.trim(), itens: c.itens.value.trim(),
+        cerimonia: parseValor(c.cer.input.value), cerimonia_recepcao: parseValor(c.rec.input.value),
+        ver_cerimonia: c.modo !== 'junto', ver_recepcao: c.modo !== 'cerimonia' };
+    });
+    var d = {
+      cliente: $('fCliente').value.trim(), tipo: $('fTipo').value.trim(), rotulos: rotAtual(), data: $('fData').value, hora: $('fHora').value, local: $('fLocal').value.trim(),
+      mensagem: $('fMensagem').value.trim(),
+      opcoes: opcoes, ordem: ordemOps.slice(), sugestao: sugestao && opcoes[sugestao].on ? sugestao : '',
+      inclui: $('fInclui').value.trim(),
+      adicionais: lerAdicionais().map(function (x) { return { nome: x.nome, descricao: x.descricao, valor: x.valor }; }),
+      condicoes: $('fCondicoes').value.trim(), validade: $('fValidade').value, observacoes: $('fObs').value.trim(),
+      secoes: { videos: $('sVideos').checked, depoimentos: $('sDepoimentos').checked }
+    };
+    if (editando && editando.modelo) {
+      d.validade_dias = Math.min(365, Math.max(1, Math.round(Number($('mDias').value)) || 30));
+      delete d.cliente; delete d.data; delete d.hora; delete d.local; delete d.mensagem; delete d.validade;
+    }
+    return d;
+  }
+
+  $('fEd').addEventListener('input', function () { sujo = true; });
+  $('fCliente').addEventListener('input', function () { corrigir($('fCliente')); });
+  $('fEd').addEventListener('submit', function (e) { e.preventDefault(); });
+  // "Enter" num campo de uma linha só fecha o teclado (não salva sem querer)
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') return fecharFolhas();
+    var t = e.target;
+    if (e.key === 'Enter' && t && ((t.tagName === 'INPUT' && t.id !== 'senha' && t.type !== 'checkbox') || (t.classList && t.classList.contains('x-nome')))) { e.preventDefault(); t.blur(); }
+  });
+
+  function modo(m) {   // 'proposta' (nova ou existente) | 'modelo'
+    document.querySelectorAll('[data-so]').forEach(function (e) {
+      var so = e.getAttribute('data-so');
+      e.hidden = so === 'existente' ? !(m === 'proposta' && editando && editando.id) : so !== m;
+    });
+    modoEditor = m; pintarDicas();
+    pintarSituacao();
+  }
+  // faixa do topo do editor: link, "Fechou?" ou o aviso de fechada / não fechou
+  function pintarSituacao() {
+    var p = editando, existe = !!(p && p.id), et = existe ? etapaDe(p) : 'aberta', f = (p && p.fechamento) || {};
+    $('edEnvio').hidden = !existe;
+    $('edFechou').hidden = !(existe && et === 'aberta');
+    $('edSituacao').hidden = !(existe && et !== 'aberta');
+    $('btEditarFech').hidden = et !== 'fechada';
+    if (!existe) return;
+    $('edVer').href = linkDe(p);
+    var ce = contatoDe(p);
+    whatsLink($('edWhats'), ce && ce.whatsapp, mensagemProposta(p), ce ? ce.nome : (p.dados && p.dados.cliente));
+    $('edContato').textContent = ce ? 'Contato: ' + ce.nome + (ce.whatsapp ? ' · ' + mascaraWhats(ce.whatsapp) : '') + ' · editar' : '+ Guardar o WhatsApp do cliente';
+    if (et === 'fechada') {
+      $('edSituacao').className = 'situacao fechada';
+      $('sitTitulo').textContent = 'Fechada · ' + dinheiro(valorFechado(p));
+      $('sitDetalhe').textContent = rotulosFechamento(p, true).join(' · ') + (f.obs ? ' — ' + f.obs : '');
+    } else if (et === 'perdida') {
+      $('edSituacao').className = 'situacao perdida';
+      $('sitTitulo').textContent = 'Não fechou';
+      $('sitDetalhe').textContent = f.motivo || '';
+    }
+    $('sitDetalhe').hidden = !$('sitDetalhe').textContent;
+    $('sitQuando').textContent = et !== 'aberta' && p.fechado_em ? 'em ' + dataCurta(p.fechado_em) : '';
+    $('sitQuando').hidden = !$('sitQuando').textContent;
+  }
+  function entrarEditor(titulo, salvarTxt, m, maisAberto) {
+    $('edTitulo').textContent = titulo; $('btSalvar').textContent = salvarTxt; $('btSalvar').disabled = false;
+    $('maisOpcoes').open = !!maisAberto;
+    modo(m); mostrar('vEditor');
+    if (!(history.state && history.state.tela === 'editor')) { try { history.pushState({ tela: 'editor' }, ''); } catch (e) {} }
+  }
+  function sairDoEditor() {   // volta para a lista (e desfaz a entrada do "voltar" do celular)
+    sujo = false;
+    if (history.state && history.state.tela === 'editor') history.back(); else { filtroPara(editando); abrirLista(); }
+  }
+  window.addEventListener('popstate', function () {
+    if ($('vEditor').hidden) return;
+    if (sujo && !confirm('Sair sem salvar?')) { try { history.pushState({ tela: 'editor' }, ''); } catch (e) {} return; }
+    sujo = false; fecharFolhas();
+    if (logado()) { filtroPara(editando); abrirLista(); } else mostrar('vLogin');
+  });
+  $('btVoltar').addEventListener('click', function () {
+    if (sujo && !confirm('Sair sem salvar?')) return;
+    sairDoEditor();
+  });
+  window.addEventListener('beforeunload', function (e) { if (sujo) { e.preventDefault(); e.returnValue = ''; } });
+
+  function carregarModelo() { return modelo ? Promise.resolve(modelo) : api('GET', '/admin/modelo').then(function (m) { modelo = m || {}; return modelo; }); }
+
+  function novaProposta() {
+    var solta = ocupado($('btNova'));
+    carregarModelo().then(function (m) {
+      editando = { novo: true }; sujo = false; vincularContato = null;
+      var d = JSON.parse(JSON.stringify(m)); d.cliente = ''; d.data = ''; d.local = ''; d.mensagem = '';
+      d.validade = hojeMais(Number(m.validade_dias) || 30);
+      preencher(d);
+      entrarEditor('Nova proposta', 'Salvar e gerar link', 'proposta', false);
+    }).catch(falhou).then(solta);
+  }
+  $('btNova').addEventListener('click', novaProposta);
+  $('btNovaAgenda').addEventListener('click', novaProposta);
+
+  function abrirEditor(p) {
+    editando = p; sujo = false; vincularContato = null;
+    preencher(p.dados);
+    entrarEditor((p.dados && p.dados.cliente) || 'Proposta', 'Salvar alterações', 'proposta', false);
+  }
+
+  // confere o que falta; o campo fica marcado e ganha foco (nome do cliente + pelo menos uma opção ligada com um valor à mostra)
+  function validar() {
+    if (!$('fCliente').value.trim()) { $('fCliente').classList.add('falta'); toast('Coloque o nome do cliente'); focar($('fCliente')); return false; }
+    var ligadas = ordemOps.filter(function (k) { return C[k].on.checked; });
+    if (!ligadas.length) { toast('Ligue pelo menos uma opção'); C[ordemOps[0]].on.focus(); $('passoOpcoes').scrollIntoView({ block: 'start' }); return false; }
+    // os campos de valor que aparecem em cada opção (junto: só cerimônia + recepção; só cerimônia: só a cerimônia)
+    var visiveis = function (k) { return [C[k].modo !== 'junto' ? 'cer' : '', C[k].modo !== 'cerimonia' ? 'rec' : ''].filter(Boolean); };
+    var comValor = ligadas.filter(function (k) { return visiveis(k).some(function (q) { return temValor(parseValor(C[k][q].input.value)); }); });
+    if (!comValor.length) {   // opção ligada sem valor pode (a página mostra "Valor sob consulta"), mas uma delas precisa ter
+      var primeiro = null;
+      ligadas.forEach(function (k) { visiveis(k).forEach(function (q) { C[k][q].caixa.classList.add('falta'); primeiro = primeiro || C[k][q].input; }); });
+      toast('Coloque o valor em pelo menos uma opção');
+      focar(primeiro); return false;
+    }
+    return validarAdicionais();
+  }
+  function validarAdicionais() {   // adicional com preço precisa de nome (vale para proposta e modelo)
+    var semNome = lerAdicionais().filter(function (x) { return !x.nome; })[0];
+    if (!semNome) return true;
+    $('maisOpcoes').open = true;
+    var n = semNome._linha.querySelector('.x-nome'); n.classList.add('falta'); toast('Coloque o nome do adicional'); focar(n);
+    return false;
+  }
+  function salvar() {
+    var bt = $('btSalvar'), solta;
+    if (bt.disabled || !editando) return;
+    if (editando.modelo) {
+      if (!validarAdicionais()) return;
+      solta = ocupado(bt, 'Salvando…');
+      return api('PUT', '/admin/modelo', { dados: lerForm() }).then(function (m) { modelo = m; toastNaProxima('Proposta padrão salva'); sairDoEditor(); }).catch(falhou).then(solta);
+    }
+    if (!validar()) return;
+    solta = ocupado(bt, 'Salvando…');
+    var eraNova = !!editando.novo;
+    var req = eraNova
+      ? api('POST', '/admin/propostas', { dados: lerForm(), status: 'publicada' })
+      : api('PUT', '/admin/propostas/' + editando.id, { dados: lerForm(), status: 'publicada' });
+    req.then(function (np) {
+      solta();
+      editando = np; sujo = false; if (eraNova) np._nova = true; atualizarNaLista(np);
+      $('edTitulo').textContent = (np.dados && np.dados.cliente) || 'Proposta'; bt.textContent = 'Salvar alterações';
+      modo('proposta');
+      if (eraNova && vincularContato) {   // a proposta feita a partir de um contato fica ligada a ele
+        var cv = contatos.filter(function (x) { return x.id === vincularContato; })[0]; vincularContato = null;
+        if (cv) {
+          cv.proposta_id = np.id; pintarSituacao();
+          api('PUT', '/admin/contatos/' + cv.id, cv).then(function (nc) { atualizarContato(nc); desenharTudo(); }).catch(falhou);
+        }
+      }
+      if (eraNova) abrirPronta(np); else toast('Alterações salvas — o link continua o mesmo');
+    }, function (e) { solta(); falhou(e); });
+  }
+  $('btSalvar').addEventListener('click', salvar);
+
+  // duplicar = começar uma proposta nova com as mesmas escolhas (você só troca o cliente)
+  $('edDuplicar').addEventListener('click', function () {
+    var d = lerForm(), solta = ocupado($('edDuplicar'));
+    function copiar(m) {
+      solta();
+      editando = { novo: true };
+      d.cliente = ''; d.data = ''; d.local = ''; d.mensagem = ''; d.validade = hojeMais(Number(m && m.validade_dias) || 30);
+      preencher(d); sujo = true;
+      entrarEditor('Nova proposta (cópia)', 'Salvar e gerar link', 'proposta', false);
+      $('fCliente').focus();
+      toast('Copiada. Agora é só colocar o nome do cliente');
+    }
+    // a validade da cópia recomeça a contar de hoje, pelos dias do modelo
+    carregarModelo().then(copiar, function (e) { if (e && e.message === '401') return solta(); copiar(null); });
+  });
+  $('edExcluir').addEventListener('click', function () {
+    if (editando && etapaDe(editando) === 'fechada') { toast('Essa proposta está fechada. Reabra antes de excluir.'); return; }
+    if (!confirm('Excluir a proposta de "' + ((editando.dados && editando.dados.cliente) || 'sem nome') + '"?\n\nO link para de funcionar.')) return;
+    var id = editando.id, solta = ocupado($('edExcluir'));
+    api('DELETE', '/admin/propostas/' + id).then(function () {
+      propostas = propostas.filter(function (x) { return x.id !== id; });
+      editando = null; toastNaProxima('Proposta excluída'); sairDoEditor();
+    }).catch(falhou).then(solta);
+  });
+
+  // ---------- sua proposta padrão (o modelo) ----------
+  function abrirModelo() {
+    modelo = null;
+    carregarModelo().then(function (m) {
+      editando = { modelo: true }; sujo = false;
+      preencher(m);
+      entrarEditor('Sua proposta padrão', 'Salvar proposta padrão', 'modelo', true);
+    }).catch(falhou);
+  }
+  $('btModelo').addEventListener('click', abrirModelo);
+  $('btModeloCartao').addEventListener('click', abrirModelo);
+
+  // ---------- folhas ----------
+  var FOLHAS = ['folhaGuia', 'folhaPronta', 'folhaFechou', 'folhaRecebi', 'folhaContato', 'folhaWhats'];
+  var focoAntes = null;
+  function abrirFolha(id) {
+    focoAntes = document.activeElement;
+    semToast();
+    $(id).hidden = false; document.body.classList.add('travado');
+    var f = $(id).querySelector('.folha'), corpo = f.querySelector('.guia-corpo');
+    f.scrollTop = 0; if (corpo) corpo.scrollTop = 0;
+    f.focus();
+  }
+  function fecharFolhas() {
+    if (FOLHAS.every(function (id) { return $(id).hidden; })) return;
+    semToast();
+    FOLHAS.forEach(function (id) { $(id).hidden = true; }); document.body.classList.remove('travado');
+    if (focoAntes && document.body.contains(focoAntes) && focoAntes !== document.body) { try { focoAntes.focus(); } catch (e) {} }
+    focoAntes = null;
+  }
+  FOLHAS.forEach(function (id) { $(id).addEventListener('click', function (e) { if (e.target === $(id)) fecharFolhas(); }); });
+  document.querySelectorAll('[data-cancelar]').forEach(function (b) { b.addEventListener('click', fecharFolhas); });
+
+  function abrirPronta(p) {
+    $('prontaLink').textContent = linkDe(p); $('prontaVer').href = linkDe(p);
+    var ce = contatoDe(p);
+    whatsLink($('prontaWhats'), ce && ce.whatsapp, mensagemProposta(p), ce ? ce.nome : (p.dados && p.dados.cliente));
+    abrirFolha('folhaPronta');
+  }
+  $('prontaVoltar').addEventListener('click', function () { fecharFolhas(); sairDoEditor(); });
+
+  // ---------- "Fechou?" ----------
+  function pintarEscolhas() {
+    $('fxOpcoes').querySelectorAll('button').forEach(function (b) { b.setAttribute('aria-pressed', String(b.getAttribute('data-v') === fx.opcao)); });
+    $('fxPacotes').querySelectorAll('button').forEach(function (b) { b.setAttribute('aria-pressed', String(b.getAttribute('data-v') === fx.pacote)); });
+    $('fxObsCampo').hidden = fx.opcao !== 'outro';
+  }
+  // o valor se preenche sozinho pela escolha (e continua editável)
+  function preencherValorFechado() {
+    var d = fechando.dados || {}, o = d.opcoes && d.opcoes[fx.opcao], v = o && fx.pacote ? o[fx.pacote] : null, inp = $('fxValor');
+    if (temValor(v)) { inp.value = fx.auto = numero(v); $('fxValorCaixa').classList.remove('falta'); }
+    else if (inp.value === fx.auto) { inp.value = ''; fx.auto = ''; }
+    pintarExtras();
+  }
+  function escolher(qual, v) {
+    fx[qual] = v; $('fxErro').hidden = true;
+    pintarEscolhas(); preencherValorFechado();
+  }
+  // adicionais do fechamento (ex.: trompetes): o que é + valor; entram no total fechado
+  function linhaExtra(a) {
+    a = a || {};
+    var r = el('div', 'adic-linha');
+    var nome = el('input', 'x-nome'); nome.type = 'text'; nome.maxLength = 120; nome.placeholder = 'O que é'; nome.value = a.nome || '';
+    nome.setAttribute('aria-label', 'Nome do adicional'); nome.setAttribute('enterkeyhint', 'done');
+    var cx = caixaDinheiro('Valor do adicional'); cx.input.classList.add('x-valor');
+    cx.input.value = a.valor != null ? numero(a.valor) : '';
+    var rm = botao('b remover perigo', '×'); rm.setAttribute('aria-label', 'Tirar este adicional'); rm.title = 'Tirar';
+    rm.onclick = function () { r.parentNode.removeChild(r); pintarExtras(); };
+    nome.addEventListener('input', function () { nome.classList.remove('falta'); $('fxErro').hidden = true; pintarExtras(); });
+    cx.input.addEventListener('input', function () { $('fxErro').hidden = true; pintarExtras(); });
+    r.appendChild(nome); r.appendChild(cx.caixa); r.appendChild(rm);
+    return r;
+  }
+  function lerExtras() {
+    return Array.prototype.map.call($('fxAdicionais').children, function (r) {
+      return { nome: r.querySelector('.x-nome').value.trim(), valor: parseValor(r.querySelector('.x-valor').value), _linha: r };
+    }).filter(function (x) { return x.nome || x.valor != null; });
+  }
+  function somaExtras(lista) { return lista.reduce(function (s, x) { return s + (temValor(x.valor) ? x.valor : 0); }, 0); }
+  function pintarExtras() {
+    // atalhos: os adicionais da proposta que ainda não entraram
+    var ja = lerExtras().map(function (x) { return x.nome.toLowerCase(); }), algum = false;
+    Array.prototype.forEach.call($('fxAdicSug').children, function (b) { b.hidden = ja.indexOf(b.getAttribute('data-nome').toLowerCase()) >= 0; algum = algum || !b.hidden; });
+    $('fxAdicSug').hidden = !algum;
+    var soma = somaExtras(lerExtras()), base = parseValor($('fxValor').value) || 0;
+    limparNo($('fxTotal')); $('fxTotal').hidden = !soma;
+    if (soma) { $('fxTotal').appendChild(el('span', null, 'Total com adicionais')); $('fxTotal').appendChild(el('b', null, dinheiro(Math.round((base + soma) * 100) / 100))); }
+    pintarPagamento();
+  }
+  // pagamento: sinal (padrão do CONFIG, editável) + restante (o que falta), cada um com vencimento e "já recebi"
+  function totalFechou() { return somaDinheiro(parseValor($('fxValor').value) || 0, somaExtras(lerExtras())); }
+  function pintarPagamento() {
+    var total = totalFechou(), inp = $('fxSinalValor');
+    if (fx.sinalAuto) inp.value = total > 0 ? numero(Math.round(total * SINAL_PCT / 100)) : '';
+    var sinal = parseValor(inp.value) || 0, rest = somaDinheiro(total, -sinal);
+    $('fxSinalPct').textContent = total > 0 && sinal > 0 ? Math.round(sinal / total * 100) + '% do total' : '';
+    $('fxRestanteValor').textContent = rest >= 0 ? dinheiro(rest) : 'o sinal passou do total';
+    $('fxRestanteValor').classList.toggle('erro', rest < 0);
+  }
+  function prepararPagamento(f0, d) {
+    var hoje = hojeISO(), pgs = f0 && Array.isArray(f0.pagamentos) ? f0.pagamentos : [];
+    var s = pgs.filter(function (x) { return x.tipo === 'sinal'; })[0], r = pgs.filter(function (x) { return x.tipo === 'restante'; })[0];
+    var venceRest = d.data ? menosDias(d.data, RESTANTE_DIAS_ANTES) : '';
+    fx.pagos = { sinal: '', restante: '' };
+    $('fxSinalCaixa').classList.remove('falta');
+    if (pgs.length) {
+      fx.sinalAuto = false; fx.sinalVenceAuto = false;
+      $('fxSinalValor').value = s ? numero(s.valor) : '';
+      $('fxSinalVence').value = s ? s.vence_em : ''; fx.pagos.sinal = s ? s.pago_em : ''; $('fxSinalPago').checked = !!fx.pagos.sinal;
+      $('fxRestanteVence').value = r ? r.vence_em : venceRest; fx.pagos.restante = r ? r.pago_em : ''; $('fxRestantePago').checked = !!fx.pagos.restante;
+    } else {
+      fx.sinalAuto = true; fx.sinalVenceAuto = true;
+      $('fxSinalVence').value = $('fxData').value; $('fxSinalPago').checked = true;
+      $('fxRestanteVence').value = venceRest; $('fxRestantePago').checked = !!(d.data && d.data < hoje);
+    }
+    pintarPagamento();
+  }
+  function novoExtra(a, focoNoValor) {
+    if ($('fxAdicionais').children.length >= 10) return toast('São no máximo 10 adicionais');
+    var r = linhaExtra(a); $('fxAdicionais').appendChild(r); pintarExtras();
+    r.querySelector(focoNoValor ? '.x-valor' : '.x-nome').focus();
+  }
+  $('fxAddAdic').addEventListener('click', function () { novoExtra(); });
+  $('fxValor').addEventListener('input', pintarExtras);
+  $('fxSinalValor').addEventListener('input', function () { fx.sinalAuto = false; $('fxSinalCaixa').classList.remove('falta'); $('fxErro').hidden = true; pintarPagamento(); });
+  $('fxSinalValor').addEventListener('blur', function () { var x = parseValor(this.value); this.value = x != null ? numero(x) : ''; });
+  $('fxSinalVence').addEventListener('change', function () { fx.sinalVenceAuto = false; });
+  $('fxData').addEventListener('change', function () { if (fx.sinalVenceAuto) $('fxSinalVence').value = this.value; });
+
+  function abrirFechou(p) {
+    fechando = p;
+    var d = p.dados || {}, box = $('fxOpcoes');
+    // os botões de pacote mostram os nomes que esta proposta usa para os dois valores
+    var rp = limparRotulos(d.rotulos);
+    $('fxPacotes').querySelectorAll('button').forEach(function (b) { b.textContent = b.getAttribute('data-v') === 'cerimonia' ? rp.pacote_a : rp.pacote_b; });
+    var f0 = etapaDe(p) === 'fechada' ? (p.fechamento || {}) : null;   // já fechada: editar o fechamento
+    fx.editar = !!f0;
+    $('fxTit').textContent = f0 ? 'Editar fechamento' : 'Fechou?';
+    $('fxNao').hidden = !!f0;
+    limparNo($('fxAdicionais')); limparNo($('fxAdicSug'));
+    (Array.isArray(d.adicionais) ? d.adicionais : []).filter(function (a) { return a && a.nome; }).forEach(function (a) {
+      var b = botao(null, '+ ' + a.nome); b.setAttribute('data-nome', a.nome);
+      b.onclick = function () { novoExtra({ nome: a.nome, valor: a.valor }, true); };
+      $('fxAdicSug').appendChild(b);
+    });
+    var ligadas = ordemDe(d).filter(function (k) { return d.opcoes && d.opcoes[k] && d.opcoes[k].on; });   // na ordem da proposta
+    // os pacotes com valor à mostra em cada opção
+    var mostrou = function (k) {
+      var x = d.opcoes[k];
+      return [verCerimonia(d, x) && temValor(x.cerimonia) ? 'cerimonia' : '', verRecepcao(d, x) && temValor(x.cerimonia_recepcao) ? 'cerimonia_recepcao' : ''].filter(Boolean);
+    };
+    var tipos = [];
+    ligadas.forEach(function (k) { mostrou(k).forEach(function (t) { if (tipos.indexOf(t) < 0) tipos.push(t); }); });
+    var quem = [d.cliente || 'Sem nome', d.data && dataCurta(d.data), d.hora && horaTxt(d.hora)].filter(Boolean).join(' · ');
+    $('fxQuem').textContent = quem; $('nfQuem').textContent = quem;
+    var ja = naData(d.data, p.id).fechadas;
+    $('fxConflito').textContent = ja.length >= POR_DIA ? 'Atenção: este dia já tem ' + ja.length + ' eventos fechados (' + ja.join(', ') + ').'
+      : ja.length ? 'Este será o 2º evento do dia (já tem ' + ja[0] + '). Confira os horários e o deslocamento.' : '';
+    $('fxConflito').hidden = !ja.length;
+    limparNo(box);
+    ligadas.concat(['outro']).forEach(function (k) {
+      var b = botao(null, nomeOpcao(d, k)); b.setAttribute('data-v', k); b.setAttribute('aria-pressed', 'false');
+      b.onclick = function () {
+        var t = k === 'outro' ? [] : mostrou(k);
+        if (t.length === 1) fx.pacote = t[0];   // a opção mostrava um pacote só: ele já vem marcado
+        escolher('opcao', k);
+      };
+      box.appendChild(b);
+    });
+    fx.opcao = ligadas.length === 1 ? ligadas[0] : (ligadas.length ? '' : 'outro');
+    var jaMarca = fx.opcao && fx.opcao !== 'outro' ? mostrou(fx.opcao) : tipos;
+    fx.pacote = jaMarca.length === 1 ? jaMarca[0] : '';
+    fx.auto = ''; fx.sinalAuto = true; fx.sinalVenceAuto = true;
+    $('fxValor').value = ''; $('fxValorCaixa').classList.remove('falta'); $('fxData').value = hojeMais(0); $('fxObs').value = '';
+    $('nfMotivo').value = ''; $('fxErro').hidden = true; $('nfErro').hidden = true;
+    $('fxParteFechou').hidden = false; $('fxParteNao').hidden = true;
+    if (f0) {
+      fx.opcao = f0.opcao || 'outro'; fx.pacote = f0.pacote && f0.pacote !== 'outro' ? f0.pacote : '';
+      $('fxValor').value = temValor(f0.valor) ? numero(f0.valor) : '';
+      $('fxData').value = f0.data || p.fechado_em || hojeMais(0); $('fxObs').value = f0.obs || '';
+      (Array.isArray(f0.adicionais) ? f0.adicionais : []).forEach(function (a) { $('fxAdicionais').appendChild(linhaExtra(a)); });
+      pintarEscolhas(); pintarExtras();
+    } else { pintarEscolhas(); preencherValorFechado(); }
+    prepararPagamento(f0, d);
+    abrirFolha('folhaFechou');
+  }
+  $('fxPacotes').querySelectorAll('button').forEach(function (b) { b.addEventListener('click', function () { escolher('pacote', b.getAttribute('data-v')); }); });
+  $('fxValor').addEventListener('blur', function () { var x = parseValor(this.value); this.value = x != null ? numero(x) : ''; });
+  $('fxValor').addEventListener('input', function () { $('fxValorCaixa').classList.remove('falta'); $('fxErro').hidden = true; });
+  $('edFechou').addEventListener('click', function () { if (editando && editando.id) abrirFechou(editando); });
+  $('edContato').addEventListener('click', function () {
+    if (!editando || !editando.id) return;
+    var ce = contatoDe(editando), d = editando.dados || {};
+    abrirContato(ce, ce ? null : { nome: d.cliente || '', data_evento: d.data || '', proposta_id: editando.id });
+  });
+  $('btEditarFech').addEventListener('click', function () { if (editando && editando.id) abrirFechou(editando); });
+  MOTIVOS.forEach(function (m) { var b = botao(null, m); b.onclick = function () { $('nfMotivo').value = m; }; $('nfMotivos').appendChild(b); });
+  $('fxNao').addEventListener('click', function () { $('fxParteFechou').hidden = true; $('fxParteNao').hidden = false; });
+  $('nfVoltar').addEventListener('click', function () { $('fxParteNao').hidden = true; $('fxParteFechou').hidden = false; });
+
+  function erroNaFolha(id, msg) { $(id).textContent = msg; $(id).hidden = false; }
+  // manda a mudança (fechada · não fechou · reaberta) e atualiza lista, resumo e editor
+  function mudarEtapa(p, corpo, bt, msg, idErro, ficar) {
+    var solta = ocupado(bt, 'Salvando…');
+    return api('PUT', '/admin/propostas/' + p.id + '/etapa', corpo).then(function (np) {
+      solta();
+      atualizarNaLista(np); fecharFolhas();
+      if (!$('vEditor').hidden && editando && editando.id === np.id) { editando = np; pintarSituacao(); }
+      else if (!ficar && !$('vLista').hidden && np.etapa === 'fechada') definirAba('clientes');   // quem fechou vira cliente
+      desenharTudo();
+      toast(msg);
+    }, function (e) {
+      solta();
+      if (e && e.message === '401') return;
+      if (idErro) erroNaFolha(idErro, e.message || 'Algo deu errado.'); else falhou(e);
+    });
+  }
+  $('fxSalvar').addEventListener('click', function () {
+    var valor = parseValor($('fxValor').value);
+    if (!fx.opcao) return erroNaFolha('fxErro', 'Escolha a opção que fechou.');
+    if (!fx.pacote && fx.opcao !== 'outro') return erroNaFolha('fxErro', 'Escolha o pacote.');
+    if (!temValor(valor)) { $('fxValorCaixa').classList.add('falta'); $('fxValor').focus(); return erroNaFolha('fxErro', 'Coloque o valor fechado.'); }
+    var extras = lerExtras(), semNome = extras.filter(function (x) { return !x.nome; })[0];
+    if (semNome) { var n = semNome._linha.querySelector('.x-nome'); n.classList.add('falta'); n.focus(); return erroNaFolha('fxErro', 'Coloque o nome do adicional.'); }
+    var total = Math.round((valor + somaExtras(extras)) * 100) / 100;
+    var sinal = parseValor($('fxSinalValor').value) || 0, rest = somaDinheiro(total, -sinal), hoje = hojeMais(0), dataF = $('fxData').value || hoje;
+    if (rest < 0) { $('fxSinalCaixa').classList.add('falta'); $('fxSinalValor').focus(); return erroNaFolha('fxErro', 'O sinal não pode passar do total.'); }
+    var venceRest = $('fxRestanteVence').value, pagamentos = [];
+    if (sinal > 0) pagamentos.push({ tipo: 'sinal', valor: sinal, vence_em: $('fxSinalVence').value, pago_em: $('fxSinalPago').checked ? (fx.pagos.sinal || dataF) : '' });
+    if (rest > 0) pagamentos.push({ tipo: 'restante', valor: rest, vence_em: venceRest, pago_em: $('fxRestantePago').checked ? (fx.pagos.restante || (venceRest && venceRest < hoje ? venceRest : hoje)) : '' });
+    mudarEtapa(fechando, { etapa: 'fechada', fechamento: { opcao: fx.opcao, pacote: fx.pacote || 'outro', valor: valor, data: $('fxData').value || hojeMais(0), obs: fx.opcao === 'outro' ? $('fxObs').value.trim() : '',
+      adicionais: extras.map(function (x) { return { nome: x.nome, valor: x.valor }; }), pagamentos: pagamentos } },
+      this, fx.editar ? 'Fechamento atualizado' : 'Fechada! ' + dinheiro(total) + ' entrou no total', 'fxErro');
+  });
+  // "Recebi": marca um pagamento como recebido (manda o mesmo fechamento, só com a data em que entrou)
+  var recebendo = null;
+  function abrirRecebi(p, i) {
+    var pg = pagamentosDe(p)[i]; if (!pg) return;
+    recebendo = { id: p.id, i: i };
+    $('rcQuem').textContent = (TIPO_PAG[pg.tipo] || 'Pagamento') + ' de ' + ((p.dados || {}).cliente || 'Sem nome') + ' · ' + dinheiro(pg.valor);
+    $('rcData').value = hojeMais(0); $('rcErro').hidden = true;
+    abrirFolha('folhaRecebi');
+  }
+  $('rcSalvar').addEventListener('click', function () {
+    if (!recebendo) return;
+    var p = propostas.filter(function (x) { return x.id === recebendo.id; })[0]; if (!p) return fecharFolhas();
+    var f = JSON.parse(JSON.stringify(p.fechamento || {})), pg = f.pagamentos && f.pagamentos[recebendo.i];
+    if (!pg) return fecharFolhas();
+    f.data = f.data || p.fechado_em;
+    pg.pago_em = $('rcData').value || hojeMais(0);
+    mudarEtapa(p, { etapa: 'fechada', fechamento: f }, this, (TIPO_PAG[pg.tipo] || 'Pagamento') + ' recebido: ' + dinheiro(pg.valor), 'rcErro', true);
+  });
+  $('nfSalvar').addEventListener('click', function () {
+    mudarEtapa(fechando, { etapa: 'perdida', motivo: $('nfMotivo').value.trim() }, this, 'Marcada como “Não fechou”', 'nfErro');
+  });
+  $('btReabrir').addEventListener('click', function () {
+    if (!editando || !editando.id) return;
+    if (etapaDe(editando) === 'fechada' && !confirm('Reabrir esta proposta?\n\nEla volta para “Em aberto” e o valor fechado sai do total.')) return;
+    mudarEtapa(editando, { etapa: 'aberta' }, this, 'Proposta reaberta');
+  });
+
+  // ---------- início ----------
+  if (history.state && history.state.tela === 'editor') { try { history.replaceState(null, ''); } catch (e) {} }
+  if (logado()) abrirLista(); else mostrar('vLogin');
+})();
+</script>
+</body>
+</html>
